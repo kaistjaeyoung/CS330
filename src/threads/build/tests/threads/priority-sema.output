@@ -1,4 +1,4 @@
-Writing command line to /tmp/jtqQat412O.dsk...
+Writing command line to /tmp/kPrgPfet9S.dsk...
 warning: can't find squish-pty, so terminal input will fail
 bochs -q
 Kernel command line: -q run priority-sema
@@ -13,6 +13,8 @@ Executing 'priority-sema':
 (priority-sema) Back in main thread.
 (priority-sema) Back in main thread.
 (priority-sema) Back in main thread.
+(priority-sema) Thread priority 26 woke up.
+(priority-sema) Thread priority 29 woke up.
 (priority-sema) Back in main thread.
 (priority-sema) Back in main thread.
 (priority-sema) Back in main thread.
@@ -21,9 +23,9 @@ Executing 'priority-sema':
 (priority-sema) Back in main thread.
 (priority-sema) end
 Execution of 'priority-sema' complete.
-Timer: 109 ticks
-Thread: 0 idle ticks, 112 kernel ticks, 0 user ticks
-Console: 750 characters output
+Timer: 125 ticks
+Thread: 0 idle ticks, 128 kernel ticks, 0 user ticks
+Console: 838 characters output
 Keyboard: 0 keys pressed
 Powering off...
 ========================================================================

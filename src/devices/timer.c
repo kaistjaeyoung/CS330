@@ -10,6 +10,10 @@
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
+/* Idle thread. */
+static struct thread *idle_thread;
+static struct list sleep_list;
+
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
 #endif
@@ -42,6 +46,7 @@ timer_init (void)
   outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
   outb (0x40, count & 0xff);
   outb (0x40, count >> 8);
+  list_init (&sleep_list);
 
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -99,23 +104,56 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
+  // while (timer_elapsed (start) < ticks) 
+  //   thread_yield ();
 
   // Disable intr
   enum intr_level old_level = intr_disable ();
   int64_t wakeup_tick = start + ticks;
-
+  
   // Get current thread
   struct thread *curr = thread_current ();
 
   // If current thread is not idle, push it to the sleep_list
+  // ASSERT(curr != idle_thread);
+
   if (curr != idle_thread) {
-    curr -> wakeup_tick = wakeup_tick;
+    curr -> wakeup_tick = wakeup_tick;    
     list_push_back (&sleep_list, &curr->elem);
+    thread_block ();
   }
 
-  thread_block ();
   // Cancel intr_disable
   intr_set_level (old_level);
+}
+
+void
+find_thread_and_awake_it (void)
+{
+  // enum intr_level old_level = intr_disable ();
+
+  // old_level = intr_disable ();
+
+  // // // Get current time
+  int64_t curr_ticks = timer_ticks ();
+
+  // // // Loop sleep_list and find the thread and awake it
+  struct list_elem *e;
+
+  if (!list_empty (&sleep_list)) {
+    e = list_begin (&sleep_list);
+    while (e != list_end(&sleep_list)) {
+      struct thread * sleep_thread = list_entry (e, struct thread, elem);
+      int64_t obj_ticks = sleep_thread -> wakeup_tick;
+      if (obj_ticks <= curr_ticks) {
+        struct thread * sleep_thread = list_entry (e, struct thread, elem);
+        e =list_remove (e);
+        thread_unblock (sleep_thread);
+      } else {
+        e = list_next (e);
+      }
+    }
+  }
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -146,38 +184,13 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
-/* find specific thread to wake up and awake it  */
-void
-find_thread_and_awake_it (void)
-{
-  // Get current time
-  int64_t curr_ticks = timer_ticks ();
-
-  // Loop sleep_list and find the thread and awake it
-  struct list_elem *e;
-
-  if (!list_empty (&sleep_list)) {
-    for (e = list_begin (list); e != list_end (list); e = list_next (e)) {
-      struct thread * sleep_thread = list_entry (e, struct thread, elem);
-      int64_t obj_ticks = sleep_thread -> wakeup_tick;
-      if (obj_ticks <= curr_ticks) {
-        thread_unblock (sleep_thread);
-        list_remove(e)
-      }
-    }
-  }
-  // loop the sleep thread and checks each thread should awake
-
-}
-
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-
-  find_thread_and_awake_it();
+  find_thread_and_awake_it ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
