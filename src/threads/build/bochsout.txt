@@ -62,7 +62,7 @@
 00000000000i[     ] init_dev of 'keyboard' plugin device by virtual method
 00000000000i[KBD  ] will paste characters every 400 keyboard ticks
 00000000000i[     ] init_dev of 'harddrv' plugin device by virtual method
-00000000000i[HD   ] HD on ata0-0: '/tmp/JOS6z8FzTc.dsk', 'flat' mode
+00000000000i[HD   ] HD on ata0-0: '/tmp/CiZLrNPFBh.dsk', 'flat' mode
 00000000000i[IMG  ] hd_size: 516096
 00000000000i[HD   ] ata0-0: using specified geometry: CHS=1/16/63
 00000000000i[HD   ] Using boot sequence disk, none, none
@@ -180,7 +180,7 @@
 00008761641i[BIOS ] Booting from 0000:7c00
 00008828537i[MEM0 ] allocate_block: block=0x1 used 0x3 of 0x4
 00008954717i[MEM0 ] allocate_block: block=0x2 used 0x4 of 0x4
-00020784156i[NGUI ] ips = 20.784M
+00024890045i[NGUI ] ips = 24.890M
 00040196049p[UNMP ] >>PANIC<< Shutdown port: shutdown requested
 00040196049i[CPU0 ] CPU is in protected mode (active)
 00040196049i[CPU0 ] CS.mode = 32 bit
