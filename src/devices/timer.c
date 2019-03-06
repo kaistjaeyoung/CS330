@@ -10,6 +10,10 @@
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
+/* Idle thread. */
+static struct thread *idle_thread;
+static struct list sleep_list;
+
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
 #endif
@@ -42,6 +46,7 @@ timer_init (void)
   outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
   outb (0x40, count & 0xff);
   outb (0x40, count >> 8);
+  list_init (&sleep_list);
 
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -98,7 +103,11 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
+  printf ("%s\n","working well?");
+
   ASSERT (intr_get_level () == INTR_ON);
+  // while (timer_elapsed (start) < ticks) 
+  //   thread_yield ();
 
   // Disable intr
   enum intr_level old_level = intr_disable ();
