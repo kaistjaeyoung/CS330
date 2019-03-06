@@ -103,8 +103,6 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
-  printf ("%s\n","working well?");
-
   ASSERT (intr_get_level () == INTR_ON);
   // while (timer_elapsed (start) < ticks) 
   //   thread_yield ();
@@ -112,19 +110,50 @@ timer_sleep (int64_t ticks)
   // Disable intr
   enum intr_level old_level = intr_disable ();
   int64_t wakeup_tick = start + ticks;
-
+  
   // Get current thread
   struct thread *curr = thread_current ();
 
   // If current thread is not idle, push it to the sleep_list
+  // ASSERT(curr != idle_thread);
+
   if (curr != idle_thread) {
-    curr -> wakeup_tick = wakeup_tick;
+    curr -> wakeup_tick = wakeup_tick;    
     list_push_back (&sleep_list, &curr->elem);
+    thread_block ();
   }
 
-  thread_block ();
   // Cancel intr_disable
   intr_set_level (old_level);
+}
+
+void
+find_thread_and_awake_it (void)
+{
+  // enum intr_level old_level = intr_disable ();
+
+  // old_level = intr_disable ();
+
+  // // // Get current time
+  int64_t curr_ticks = timer_ticks ();
+
+  // // // Loop sleep_list and find the thread and awake it
+  struct list_elem *e;
+
+  if (!list_empty (&sleep_list)) {
+    e = list_begin (&sleep_list);
+    while (e != list_end(&sleep_list)) {
+      struct thread * sleep_thread = list_entry (e, struct thread, elem);
+      int64_t obj_ticks = sleep_thread -> wakeup_tick;
+      if (obj_ticks <= curr_ticks) {
+        struct thread * sleep_thread = list_entry (e, struct thread, elem);
+        e =list_remove (e);
+        thread_unblock (sleep_thread);
+      } else {
+        e = list_next (e);
+      }
+    }
+  }
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -161,6 +190,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  find_thread_and_awake_it ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
