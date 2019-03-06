@@ -99,8 +99,23 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  // Disable intr
+  enum intr_level old_level = intr_disable ();
+  int64_t wakeup_tick = start + ticks;
+
+  // Get current thread
+  struct thread *curr = thread_current ();
+
+  // If current thread is not idle, push it to the sleep_list
+  if (curr != idle_thread) {
+    curr -> wakeup_tick = wakeup_tick;
+    list_push_back (&sleep_list, &curr->elem);
+  }
+
+  thread_block ();
+  // Cancel intr_disable
+  intr_set_level (old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
