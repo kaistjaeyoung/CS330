@@ -145,6 +145,30 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
+
+/* find specific thread to wake up and awake it  */
+void
+find_thread_and_awake_it (void)
+{
+  // Get current time
+  int64_t curr_ticks = timer_ticks ();
+
+  // Loop sleep_list and find the thread and awake it
+  struct list_elem *e;
+
+  if (!list_empty (&sleep_list)) {
+    for (e = list_begin (list); e != list_end (list); e = list_next (e)) {
+      struct thread * sleep_thread = list_entry (e, struct thread, elem);
+      int64_t obj_ticks = sleep_thread -> wakeup_tick;
+      if (obj_ticks <= curr_ticks) {
+        thread_unblock (sleep_thread);
+        list_remove(e)
+      }
+    }
+  }
+  // loop the sleep thread and checks each thread should awake
+
+}
 
 /* Timer interrupt handler. */
 static void
@@ -152,6 +176,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  find_thread_and_awake_it();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
