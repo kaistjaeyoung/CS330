@@ -222,6 +222,18 @@ thread_block (void)
   schedule ();
 }
 
+bool compare_thread_priority(
+  const struct list_elem *a,
+  const struct list_elem *b,
+  void *aux UNUSED)
+{
+  printf("compare thread priority");
+  if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem) -> priority)
+    return true;
+  else 
+    return false;
+}
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -242,7 +254,8 @@ thread_unblock (struct thread *t)
 
   // When we try to push the thread to the read_list, we should consider the priority.
   // list_insert_ordered();
-  list_push_back (&ready_list, &t->elem);
+  // list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, compare_thread_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -311,7 +324,8 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (curr != idle_thread) 
-    list_push_back (&ready_list, &curr->elem);
+    list_insert_ordered(&ready_list, &curr->elem, compare_thread_priority, NULL);
+
   curr->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
