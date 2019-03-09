@@ -71,6 +71,8 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+void check_current_thread_priority_and_execute_priority_rule(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -150,6 +152,14 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
+// If current thread's priority is less than first (in ready list) thread's priority, we execute thread_yield() 
+void check_current_thread_priority_and_execute_priority_rule(void)
+{
+  struct list_elem *front = list_front (&ready_list);
+  if (list_entry(front, struct thread, elem) -> priority > thread_current() -> priority)
+    thread_yield();
+} 
+
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -202,6 +212,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  check_current_thread_priority_and_execute_priority_rule();
 
   return tid;
 }
@@ -227,7 +238,6 @@ bool compare_thread_priority(
   const struct list_elem *b,
   void *aux UNUSED)
 {
-  printf("compare thread priority");
   if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem) -> priority)
     return true;
   else 
@@ -336,6 +346,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  check_current_thread_priority_and_execute_priority_rule();
 }
 
 /* Returns the current thread's priority. */
