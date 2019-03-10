@@ -103,6 +103,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -215,7 +216,9 @@ thread_create (const char *name, int priority,
 
   // printf("ready list size : %d\n", list_size(&ready_list));
 
-  if (t->priority > thread_current() -> priority) {
+  if (t->priority > thread_current() -> priority && thread_current () != idle_thread) {
+    // printf("in thread_created, thread_yield called!");
+    thread_yield ();
     // printf("priority is larger than current!\n");
   }
 
@@ -275,13 +278,18 @@ thread_unblock (struct thread *t)
 
   t->status = THREAD_READY;
 
-  if (thread_current () != idle_thread && t->priority > thread_current () -> priority) {
-    thread_yield ();
+  // printf("unblocking thread name : %s, priority: %d\n", t -> name, t->priority);
+
+  // if (thread_current () != idle_thread && t->priority > thread_current () -> priority) {
+    // printf("we have to reschedule!\n");
+    // // printf("1st!!!current thread is : %s\n ",thread_current () -> name );
+    // thread_yield ();
+    // // printf("2nd???current thread is : %s\n ",thread_current () -> name );
     // printf("ready list size: %d\n", list_size (&ready_list) );
     // printf("change the priority name is : %s, %d ,%d\n", thread_current ()->name,thread_current ()->priority, t->priority );
     // printf("recev the priority name is : %s\n", t->name );
   
-  }
+  // }
 
   intr_set_level (old_level);
 }
@@ -362,8 +370,10 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  if (thread_current () != idle_thread) thread_yield ();
   // check_current_thread_priority_and_execute_priority_rule();
+  if (thread_current () != idle_thread) {
+    thread_yield ();
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -489,6 +499,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->original_priority = priority;
+  list_init(&t->holding_lock_list);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
