@@ -212,7 +212,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  check_current_thread_priority_and_execute_priority_rule();
+
+  // printf("ready list size : %d\n", list_size(&ready_list));
+
+  if (t->priority > thread_current() -> priority) {
+    // printf("priority is larger than current!\n");
+  }
 
   return tid;
 }
@@ -238,8 +243,9 @@ bool compare_thread_priority(
   const struct list_elem *b,
   void *aux UNUSED)
 {
-  if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem) -> priority)
+  if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem) -> priority) {
     return true;
+  }
   else 
     return false;
 }
@@ -266,7 +272,17 @@ thread_unblock (struct thread *t)
   // list_insert_ordered();
   // list_push_back (&ready_list, &t->elem);
   list_insert_ordered(&ready_list, &t->elem, compare_thread_priority, NULL);
+
   t->status = THREAD_READY;
+
+  if (thread_current () != idle_thread && t->priority > thread_current () -> priority) {
+    thread_yield ();
+    // printf("ready list size: %d\n", list_size (&ready_list) );
+    // printf("change the priority name is : %s, %d ,%d\n", thread_current ()->name,thread_current ()->priority, t->priority );
+    // printf("recev the priority name is : %s\n", t->name );
+  
+  }
+
   intr_set_level (old_level);
 }
 
@@ -346,7 +362,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  check_current_thread_priority_and_execute_priority_rule();
+  if (thread_current () != idle_thread) thread_yield ();
+  // check_current_thread_priority_and_execute_priority_rule();
 }
 
 /* Returns the current thread's priority. */
@@ -547,7 +564,7 @@ schedule_tail (struct thread *prev)
     }
 }
 
-/* Schedules a new process.  At entry, interrupts must be off and
+/* Schedules a new process.  At entry, interrupts musts be off and
    the running process's state must have been changed from
    running to some other state.  This function finds another
    thread to run and switches to it.
