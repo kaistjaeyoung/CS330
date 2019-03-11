@@ -203,7 +203,6 @@ lock_acquire (struct lock *lock)
 
   if (lock_holder != NULL) {
     if (curr->priority > lock_holder->priority) {
-      lock_holder->priority = lock_holder->original_priority;
       lock_holder->priority = curr->priority;
     }
   }
@@ -244,11 +243,13 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-  sema_up (&lock->semaphore);
 
   struct thread *curr = thread_current();
   curr->priority = curr->original_priority; 
+
+  lock->holder = NULL;
+  sema_up (&lock->semaphore);
+
 }
 
 /* Returns true if the current thread holds LOCK, false
