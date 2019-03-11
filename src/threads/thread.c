@@ -212,7 +212,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  check_current_thread_priority_and_execute_priority_rule();
+
+  if (priority > thread_current()->priority)
+    thread_yield();
 
   return tid;
 }
@@ -268,6 +270,9 @@ thread_unblock (struct thread *t)
   list_insert_ordered(&ready_list, &t->elem, compare_thread_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+
+  if (thread_current () != idle_thread&& thread_current ()->priority < t-> priority)
+    thread_yield ();
 }
 
 /* Returns the name of the running thread. */
@@ -346,7 +351,11 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  check_current_thread_priority_and_execute_priority_rule();
+  if (thread_current () != idle_thread) {
+    list_sort(&ready_list, compare_thread_priority, NULL);
+    thread_yield ();
+  }
+  // check_current_thread_priority_and_execute_priority_rule();
 }
 
 /* Returns the current thread's priority. */
@@ -472,6 +481,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->original_priority = priority;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -497,8 +507,10 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else {
+    list_sort(&ready_list, compare_thread_priority, NULL);
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
