@@ -95,6 +95,8 @@ struct thread
     // Appended element
     int64_t wakeup_tick;
     int original_priority;
+    struct list holding_lock_list;
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

@@ -213,8 +213,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  if (priority > thread_current()->priority)
-    thread_yield();
+  // if (priority > thread_current()->priority)
+  //   thread_yield();
 
   return tid;
 }
@@ -270,8 +270,10 @@ thread_unblock (struct thread *t)
   list_insert_ordered(&ready_list, &t->elem, compare_thread_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
-
-  if (thread_current () != idle_thread&& thread_current ()->priority < t-> priority)
+  
+  // get front thread of ready_list
+  struct list_elem * ready_list_front = list_front (&ready_list);
+  if (thread_current () != idle_thread && thread_current ()->priority < list_entry(ready_list_front, struct thread, elem)-> priority)
     thread_yield ();
 }
 
@@ -357,10 +359,10 @@ thread_set_priority (int new_priority)
   // }
   if (!list_empty (&ready_list)) {
   struct thread * next = list_entry(list_begin(&ready_list), struct thread, elem);
-  if (next != NULL && next->priority > new_priority) {
-    // preemption and switching needed, if current thread is of less priority
-    thread_yield();
-  }
+    if (next != NULL && next->priority > new_priority) {
+      // preemption and switching needed, if current thread is of less priority
+      thread_yield();
+    }
   }
 
   // check_current_thread_priority_and_execute_priority_rule();
