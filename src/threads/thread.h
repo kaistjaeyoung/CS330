@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -92,8 +94,10 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    // Appended element
+    // Appended element ( by jh jy )
     int64_t wakeup_tick;
+    int original_priority;
+    struct list holding_lock_list;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -103,6 +107,8 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+static struct thread *idle_thread;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -139,5 +145,10 @@ int thread_get_load_avg (void);
 
 // Our function
 bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+/* Prioirty Donate function */
+void priority_donation (struct lock * lock);
+void priority_donation_rollback(struct lock *lock);
+
 
 #endif /* threads/thread.h */

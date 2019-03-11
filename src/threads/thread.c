@@ -74,6 +74,10 @@ static tid_t allocate_tid (void);
 bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 void check_current_thread_priority_and_execute_priority_rule(void);
 
+/* Prioirty Donate function */
+void priority_donation (struct lock * lock);
+void priority_donation_rollback(struct lock *lock);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -89,6 +93,7 @@ void check_current_thread_priority_and_execute_priority_rule(void);
    finishes. */
 
 /* This is 2016 spring cs330 skeleton code */
+
 
 void
 thread_init (void) 
@@ -374,6 +379,18 @@ thread_set_priority (int new_priority)
   if (thread_current () != idle_thread) {
     thread_yield ();
   }
+
+  /* Gets the thread priority of ready list*/
+    struct thread *cur;
+
+    if(!list_empty(&ready_list))
+    {
+        cur = list_entry(list_front(&ready_list), struct thread, elem);
+        if(new_priority < cur->priority)
+        {
+            thread_yield();
+        }
+    }
 }
 
 /* Returns the current thread's priority. */
@@ -616,3 +633,58 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+// jh jy our fucking brand new functions
+void priority_donation (struct lock * lock) 
+{
+  ASSERT (lock != NULL)
+
+  if (lock->holder != NULL) {
+    struct thread * lock_holder = lock->holder;
+    struct thread * curr = thread_current ();
+
+    if (lock_holder->priority < curr->priority ) {
+      // Donation happens here!            
+      lock_holder->priority = (curr->priority)+10;
+      lock -> max_waiter_priority = curr->priority;
+      // printf("fucking donation happen! current thread is %s,  %d, %d\n ", curr->name ,lock_holder->priority,curr->priority);
+      thread_yield ();
+      // printf("curr thread? : %s\n", curr->name);
+    }
+  }
+}
+
+void priority_donation_rollback(struct lock *lock)
+{
+  enum intr_level old_level = intr_disable();
+
+  struct semaphore sema = lock -> semaphore;
+  struct list waiters_ = sema.waiters;
+  if (!list_empty (&waiters_)) {
+    struct thread * lock_holder = thread_current ();
+    struct thread * max_priority_waiter = 
+      list_entry (list_front (&waiters_), struct thread, elem);
+    
+    // It means that this thread is donated thread.   
+    if (max_priority_waiter -> priority == lock_holder -> priority) {
+
+      struct list holding_lock_list_ = lock_holder -> holding_lock_list;
+      if (!list_empty(&holding_lock_list_)) {
+
+        struct lock* highest_lock_among_holding_list =
+          list_entry(list_front(&holding_lock_list_), struct lock, elem);
+
+        if (list_empty(&highest_lock_among_holding_list->semaphore.waiters)) {
+          lock_holder -> priority  = lock_holder -> original_priority; // Set this priority with original one
+        } else {
+          struct thread * primary_waiter = list_entry(
+            list_front(&highest_lock_among_holding_list->semaphore.waiters), struct thread, elem);
+          lock_holder -> priority = primary_waiter -> priority;
+        }
+      } else {
+        lock_holder -> priority = lock_holder -> original_priority;
+      }
+    }
+  }
+  intr_set_level(old_level);
+}
