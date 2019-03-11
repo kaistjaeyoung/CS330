@@ -28,6 +28,7 @@ struct lock
 
     /* Appended elements*/
     struct list_elem elem;
+    int priority;
   };
 
 void lock_init (struct lock *);
