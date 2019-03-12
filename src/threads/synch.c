@@ -233,6 +233,8 @@ lock_acquire (struct lock *lock)
 
   sema_down (&lock->semaphore);
   lock->holder = curr;
+
+  // The current waiting lock is resolved so it should become null 
   curr->waiting_lock = NULL;
   // This lock is sema_downed so there are no waiting lock
   list_insert_ordered(&(lock->holder->holding_lock_list), &lock->elem, compare_lock_priority, NULL);
@@ -249,10 +251,14 @@ priority_donation(struct lock *lock)
   
   if (lock_holder != NULL && lock_holder->priority < curr->priority) {
     // In this case, we need a donation
+    lock_holder->is_donated = true;
+    // prinf("make is_donated true");
     struct lock * waiting_lock = lock_holder->waiting_lock;
     if (waiting_lock != NULL) {
+      // If waiting lock is not null
       struct thread * waiting_lock_holder = waiting_lock -> holder;
       if (waiting_lock_holder != NULL && waiting_lock_holder->priority < curr->priority) {
+        // in this case, we need nested donation
         lock->priority = curr->priority;
         lock_holder->priority = curr->priority;
         priority_donation(waiting_lock);
@@ -324,7 +330,7 @@ void priority_donation_rollback(struct lock *lock)
 
       struct list holding_lock_list_ = lock_holder -> holding_lock_list;
       if (!list_empty(&holding_lock_list_)) {
-
+        // if it has some holding_lock, we have to change its donation
         struct lock* highest_priority_lock =
           list_entry(list_front(&holding_lock_list_), struct lock, elem);
 
@@ -332,19 +338,12 @@ void priority_donation_rollback(struct lock *lock)
           lock_holder -> priority = highest_priority_lock->priority;
         } else {
           lock_holder -> priority = lock_holder -> original_priority;
+          lock_holder -> is_donated = false;
         }
-
-      //   if (list_empty(&highest_lock_among_holding_list->semaphore.waiters)) {
-      //     lock_holder -> priority  = lock_holder -> original_priority; // Set this priority with original one
-      //   } else {
-      //     struct thread * primary_waiter = list_entry(
-      //       list_front(&highest_lock_among_holding_list->semaphore.waiters), struct thread, elem);
-      //     lock_holder -> priority = primary_waiter -> priority;
-      //   }
-        // lock_holder -> priority = lock_holder -> original_priority;
 
       } else {
         lock_holder -> priority = lock_holder -> original_priority;
+        lock_holder -> is_donated = false;
       }
     }
   }

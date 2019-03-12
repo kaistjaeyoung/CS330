@@ -352,20 +352,20 @@ thread_yield (void)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
-  // if (thread_current () != idle_thread) {
-  //   list_sort(&ready_list, compare_thread_priority, NULL);
-  //   thread_yield ();
-  // }
-  if (!list_empty (&ready_list)) {
-  struct thread * next = list_entry(list_begin(&ready_list), struct thread, elem);
-    if (next != NULL && next->priority > new_priority) {
-      // preemption and switching needed, if current thread is of less priority
-      thread_yield();
-    }
-  }
+  struct thread * curr = thread_current ();
 
-  // check_current_thread_priority_and_execute_priority_rule();
+  curr->original_priority = new_priority;
+  if (!curr->is_donated) {
+    // we should change its priority immediately when only not donated.
+    curr->priority = new_priority;
+    if (!list_empty (&ready_list)) {
+      struct thread * next_thread = list_entry(list_begin(&ready_list), struct thread, elem);
+      if (next_thread != NULL && next_thread->priority > new_priority) {
+        thread_yield();
+      }
+    }
+
+  }
 }
 
 /* Returns the current thread's priority. */
