@@ -96,7 +96,7 @@ struct thread
     int64_t wakeup_tick;
     int original_priority;
     struct list holding_lock_list;
-    struct lock wating_lock;
+    struct lock* waiting_lock;
 
 
 #ifdef USERPROG

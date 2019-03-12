@@ -225,22 +225,43 @@ lock_acquire (struct lock *lock)
   struct thread * lock_holder = lock->holder;
   struct thread * curr = thread_current ();
 
-  if (lock_holder == NULL)
-    lock->priority = curr -> priority;
-  
+  // The current waiting lock is this lock!
+  curr -> waiting_lock = lock;
 
   /* Priority donation */
-  if (lock_holder != NULL) {
-    if (curr->priority > lock_holder->priority) {
-      lock_holder->priority = curr->priority;
-      if (lock->priority < curr->priority)
-        lock->priority = curr -> priority;
-    }
-  }
+  priority_donation (lock);
 
   sema_down (&lock->semaphore);
   lock->holder = curr;
+  curr->waiting_lock = NULL;
+  // This lock is sema_downed so there are no waiting lock
   list_insert_ordered(&(lock->holder->holding_lock_list), &lock->elem, compare_lock_priority, NULL);
+}
+
+void
+priority_donation(struct lock *lock)
+{
+  struct thread * lock_holder = lock->holder;
+  struct thread * curr = thread_current ();
+
+  if (lock_holder == NULL)
+    lock->priority = curr -> priority;
+  
+  if (lock_holder != NULL && lock_holder->priority < curr->priority) {
+    // In this case, we need a donation
+    struct lock * waiting_lock = lock_holder->waiting_lock;
+    if (waiting_lock != NULL) {
+      struct thread * waiting_lock_holder = waiting_lock -> holder;
+      if (waiting_lock_holder != NULL && waiting_lock_holder->priority < curr->priority) {
+        lock->priority = curr->priority;
+        lock_holder->priority = curr->priority;
+        priority_donation(waiting_lock);
+      }
+    } else {
+      lock->priority = curr->priority;
+      lock_holder->priority = curr->priority;
+    }
+  }
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
