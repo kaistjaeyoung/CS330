@@ -121,6 +121,7 @@ sema_up (struct semaphore *sema)
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
+  // ASSERT (sema->value == 0);
 
   old_level = intr_disable ();
   sema->value++;
@@ -208,6 +209,7 @@ bool compare_lock_priority(
 {
   const struct lock * lock_A = list_entry (a, struct lock, elem)->priority;
   const struct lock * lock_B = list_entry (a, struct lock, elem)->priority;
+  // ASSERT(lock_A!=NULL || lock_B!=NULL);
   if (list_entry (a, struct lock, elem)->priority > list_entry (b, struct lock, elem) -> priority)
     return true;
   else 
@@ -250,8 +252,8 @@ priority_donation(struct lock *lock)
   
   if (lock_holder != NULL && lock_holder->priority < curr->priority) {
     // In this case, we need a donation
+    // curr->is_donated = true; ...?
     lock_holder->is_donated = true;
-    // prinf("make is_donated true");
     struct lock * waiting_lock = lock_holder->waiting_lock;
     if (waiting_lock != NULL) {
       // If waiting lock is not null
@@ -300,7 +302,6 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
 
   /* Priority donation rollback */
   // struct thread *curr = thread_current();

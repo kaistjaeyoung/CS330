@@ -364,7 +364,6 @@ thread_set_priority (int new_priority)
         thread_yield();
       }
     }
-
   }
 }
 

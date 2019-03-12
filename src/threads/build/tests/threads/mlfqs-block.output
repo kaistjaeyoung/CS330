@@ -1,9 +1,9 @@
-Writing command line to /tmp/CiZLrNPFBh.dsk...
+Writing command line to /tmp/mWJjORy3gG.dsk...
 warning: can't find squish-pty, so terminal input will fail
 bochs -q
 Kernel command line: -q -mlfqs run mlfqs-block
 Pintos booting with 4,096 kB RAM...
-375 pages available in kernel pool.
+374 pages available in kernel pool.
 374 pages available in user pool.
 Calibrating timer...  204,600 loops/s.
 Boot complete.
@@ -18,10 +18,20 @@ Executing 'mlfqs-block':
 (mlfqs-block) Block thread should have already acquired lock.
 (mlfqs-block) end
 Execution of 'mlfqs-block' complete.
-(mlfqs-block) ...got it.
-Timer: 3074 ticks
-Thread: 487 idle ticks, 2590 kernel ticks, 0 user ticks
-Console: 775 characters output
+Timer: 3071 ticks
+Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0107497
+ cr2=c01010f9 error=00000003
+ eax=c002ff24 ebx=c002ff24 ecx=c01010f5 edx=c0111c3c
+ esi=c0116034 edi=c0111c3c esp=c010176d ebp=c0116ea0
+ cs=0008 ds=0010 es=0010 ss=6eb0
+Kernel PANIC at ../../threads/interrupt.c:373 in intr_handler(): Unexpected interrupt
+Call stack: 0xc0107389 0xc0101729 0xc010181f 0xc0107497 0xc0107c02 0xc0102ba4 0xc0108fd1 0xc0109153 0xc0106207 0xc01091f8 0xc010bb5b 0xc0100f15.
+The `backtrace' program can make call stacks useful.
+Read "Backtraces" in the "Debugging Tools" chapter
+of the Pintos documentation for more information.
+Timer: 3075 ticks
+Thread: 487 idle ticks, 2588 kernel ticks, 0 user ticks
+Console: 1381 characters output
 Keyboard: 0 keys pressed
 Powering off...
 ========================================================================
