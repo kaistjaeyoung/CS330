@@ -97,6 +97,7 @@ struct thread
     int original_priority;
     struct list holding_lock_list;
     struct lock* waiting_lock;
+    bool is_donated;
 
 
 #ifdef USERPROG
