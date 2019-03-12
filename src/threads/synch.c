@@ -208,7 +208,6 @@ bool compare_lock_priority(
 {
   const struct lock * lock_A = list_entry (a, struct lock, elem)->priority;
   const struct lock * lock_B = list_entry (a, struct lock, elem)->priority;
-  ASSERT(lock_A!=NULL || lock_B!=NULL);
   if (list_entry (a, struct lock, elem)->priority > list_entry (b, struct lock, elem) -> priority)
     return true;
   else 
