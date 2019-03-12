@@ -99,7 +99,6 @@ struct thread
     struct lock* waiting_lock;
     bool is_donated;
 
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
