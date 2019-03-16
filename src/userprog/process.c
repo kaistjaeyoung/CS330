@@ -88,6 +88,8 @@ void push_argv_to_stack(char ** tokens_array, int argc, void ** esp)
   *esp -= 4;
   *(int*)*esp = 0;
 
+  // hex_dump(*esp, *esp, 100, 1);
+
 }
 
 /* A thread function that loads a user process and makes it start
@@ -151,6 +153,9 @@ start_process (void *f_name)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  int a = 0, i;
+  for(i=0; i<10000 * 7000; ++i) a += i;
+  ASSERT(a != 0);
   return -1;
 }
 
@@ -500,7 +505,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
