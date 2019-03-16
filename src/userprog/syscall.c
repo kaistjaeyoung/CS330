@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
+#include "threads/vaddr.h"
 #include "lib/user/syscall.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -37,14 +38,14 @@ syscall_handler (struct intr_frame *f)
   int syscall_number = *(int *)(f->esp);
   switch(syscall_number) {
     case SYS_HALT:
-      power_off();
-      printf("SYS_HALT is called\n");
+      halt ();
       break;
     case SYS_EXIT:
+      is_valid_addr(f->esp + 4);
       exit(*(uint32_t *)(f->esp + 4));
-      // thread_exit ();
       break;
     case SYS_EXEC:
+      is_valid_addr(f->esp + 4);
       printf("SYS_EXEC is called\n");
       break;
     case SYS_WAIT:
@@ -66,10 +67,8 @@ syscall_handler (struct intr_frame *f)
       printf("SYS_READ is called\n");
       break;
     case SYS_WRITE:
-      // hex_dump(f->esp, f->esp, 100, 1); 
-      // printf("SYS_WRITE is called\n");   
-      // f->eax = write((int)*(uint32_t *)(f->esp+20), (void *)*(uint32_t *)(f->esp + 24), (unsigned)*((uint32_t *)(f->esp + 28)));
-       f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
+      is_valid_addr(f->esp + 4);
+      f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_SEEK:
       printf("SYS_SEEK is called\n");
@@ -92,6 +91,11 @@ syscall_handler (struct intr_frame *f)
    Returns the byte value if successful, -1 if a segfault
   occurred. */
 
+void is_valid_addr(void *uaddr)
+{
+  if(!is_user_vaddr(uaddr)) exit (-1);
+}
+
 static int
 get_user (const uint8_t *uaddr)
 {
@@ -106,7 +110,7 @@ get_user (const uint8_t *uaddr)
 
 void halt(void) 
 {
-  // shutdown_power_off()
+  power_off();
 }
 
 void exit (int status)
