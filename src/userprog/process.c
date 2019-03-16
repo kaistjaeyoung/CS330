@@ -182,6 +182,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  // when a child process is exit, do sema_up of parent's semaphore
 }
 
 /* Sets up the CPU for running user code in the current

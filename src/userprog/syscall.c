@@ -46,7 +46,7 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
-      printf("SYS_EXEC is called\n");
+      f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_WAIT:
       printf("SYS_WAIT is called\n");
@@ -67,8 +67,9 @@ syscall_handler (struct intr_frame *f)
       printf("SYS_READ is called\n");
       break;
     case SYS_WRITE:
-      is_valid_addr(f->esp + 4);
-      f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
+      is_valid_addr(f->esp + 4);        
+      f->eax =
+        write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_SEEK:
       printf("SYS_SEEK is called\n");
@@ -151,7 +152,6 @@ int write (int fd, const void *buffer, unsigned size)
   if (fd == 1) {
     // Fd 1 writes to the console. Your code to write to the console should write all of buffer in one call to putbuf()
     putbuf(buffer, size);
-    // printf("size is? : %d\n", size);
     return size;
   }
   return -1; 
