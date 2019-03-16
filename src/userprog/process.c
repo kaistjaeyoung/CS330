@@ -16,6 +16,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
@@ -46,6 +47,7 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
   return tid;
 }
 
@@ -102,7 +104,7 @@ start_process (void *f_name)
   bool success;
 
   char *token, *save_ptr;
-  char *tokens_array[50];
+  char *tokens_array[256];
 
   int i;
 
@@ -151,12 +153,31 @@ start_process (void *f_name)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  int a = 0, i;
-  for(i=0; i<10000 * 7000; ++i) a += i;
-  ASSERT(a != 0);
+  // by jh
+  // int a = 0, i;
+  // for(i=0; i<10000 * 7000; ++i) a += i;
+  // ASSERT(a != 0);
+  // return -1;
+
+  // wait child process to do 'sema_up' ( by jy )
+  struct list_elem* e;
+  struct thread* t = NULL;
+  int exit_status;
+
+  for (e = list_begin(&(thread_current()->child_list)); e != list_end(&(thread_current()->child_list)); e = list_next(e)) {
+    t = list_entry(e, struct thread, child_elem);
+    if (child_tid == t->tid) {
+      sema_down(&(t->child_lock));
+      exit_status = t->exit_status;
+      list_remove(&(t->child_elem));
+      sema_up(&(t->mem_lock));
+      return exit_status;
+    }
+  }
   return -1;
+
 }
 
 /* Free the current process's resources. */
@@ -183,7 +204,9 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  // when a 
+  // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
+  sema_up(&(curr->child_lock));
+  sema_down(&(curr->mem_lock));
 }
 
 /* Sets up the CPU for running user code in the current

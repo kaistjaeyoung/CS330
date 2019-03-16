@@ -49,9 +49,13 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
-      f->eax = exec((const char *)fd);
+      // f->eax = exec((const char *)fd);
+      f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_WAIT:
+      is_valid_addr(f->esp + 4);
+      f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
+      break; 
       printf("SYS_WAIT is called\n");
       break;
     case SYS_CREATE:
@@ -71,6 +75,8 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_WRITE:
       is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 8);        
+      is_valid_addr(f->esp + 12);        
       f->eax = write((int)fd, (void *)buffer, (unsigned)size);
       break;
     case SYS_SEEK:
@@ -122,6 +128,7 @@ void exit (int status)
   /* Terminates the current user program, returning status to the kernel.
   If the process's parent waits for it (see below), this is the status that will be returned.
   Conventionally, a status of 0 indicates success and nonzero values indicate errors.*/
+  thread_current() -> exit_status = status; // ( by jy )
   thread_exit();
 }
 
@@ -152,7 +159,8 @@ int read (int fd, void* buffer, unsigned size)
 int write (int fd, const void *buffer, unsigned size)
 {
   if (fd == 1) {
-    // Fd 1 writes to the console. Your code to write to the console should write all of buffer in one call to putbuf()
+    /* Fd 1 writes to the console. Your code to write to the console 
+    should write all of buffer in one call to putbuf()*/
     putbuf(buffer, size);
     return size;
   }
