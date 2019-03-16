@@ -34,19 +34,22 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-
   int syscall_number = *(int *)(f->esp);
+  int fd = *(int *)(f->esp + 4);
+  int buffer = *(int *)(f->esp + 8);
+  int size = *(int *)(f->esp + 12);
+
   switch(syscall_number) {
     case SYS_HALT:
       halt ();
       break;
     case SYS_EXIT:
       is_valid_addr(f->esp + 4);
-      exit(*(uint32_t *)(f->esp + 4));
+      exit(fd);
       break;
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
-      f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
+      f->eax = exec((const char *)fd);
       break;
     case SYS_WAIT:
       printf("SYS_WAIT is called\n");
@@ -68,8 +71,7 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_WRITE:
       is_valid_addr(f->esp + 4);        
-      f->eax =
-        write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
+      f->eax = write((int)fd, (void *)buffer, (unsigned)size);
       break;
     case SYS_SEEK:
       printf("SYS_SEEK is called\n");
