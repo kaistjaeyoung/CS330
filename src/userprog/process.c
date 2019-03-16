@@ -31,6 +31,8 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  char *next_ptr;
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -38,11 +40,54 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  file_name = strtok_r((char *) file_name, " ", &next_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
+}
+
+void push_argv_to_stack(char ** tokens_array, int argc, void ** esp)
+{
+  int i;
+  int argv_addr[argc];
+  int total_length = 0;
+
+  for (i=argc - 1; i >= 0; i--) {
+    int argv_length = strlen(tokens_array[i]) + 1;
+    total_length += argv_length;
+    *esp -= argv_length;
+    strlcpy(*esp, tokens_array[i], argv_length);
+    argv_addr[i] = (int)*esp;
+  }
+
+  /* push word align esp to be %4 */
+  *esp -= total_length % 4 != 0 ? 4 - (total_length % 4) : 0;
+
+  // Push Null ptr
+  *esp -= 4;
+  *(int*)*esp = 0;
+
+  // Push argv ptr to esp
+  for (i=argc - 1; i >= 0; i--) {
+    *esp -= 4;
+    *(int*)*esp = argv_addr[i];
+  }
+
+  // Push argv_addr ptr to esp
+  *esp -= 4;
+  *(int*)*esp = *esp + 4;
+
+  // Push argc to esp
+  *esp -= 4;
+  *(int*)*esp = argc;
+
+  // Push virtual return value to esp
+  *esp -= 4;
+  *(int*)*esp = 0;
+
 }
 
 /* A thread function that loads a user process and makes it start
@@ -54,12 +99,28 @@ start_process (void *f_name)
   struct intr_frame if_;
   bool success;
 
+  char *token, *save_ptr;
+  char *tokens_array[50];
+
+  int i;
+
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) 
+  {
+      tokens_array[i] = token;
+      i += 1;
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  // if load succeeded, grow stack
+  if (success) {
+    push_argv_to_stack(&tokens_array, i, &if_.esp);
+  }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
