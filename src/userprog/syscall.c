@@ -158,5 +158,6 @@ int write (int fd, const void *buffer, unsigned size)
 bool create (const char *file, unsigned initial_size)
 {
   if (strcmp(file, "") == 0) return false;
-  return true;
+  if (file == NULL) exit(-1);
+  return filesys_create(file, initial_size);
 }
