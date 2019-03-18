@@ -103,16 +103,11 @@ struct thread
     struct list child_list;             /* parent have child threads */
     struct list_elem child_elem;
     int exit_status;
-    struct list fd_list;
+    struct list fd_list;                /* file descripter list */
+    int max_fd;
 #endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-};
-
-struct fd
-{
-  int fd_value;
-  struct list_elem fd_elem;
 };
 
 /* If false (default), use round-robin scheduler.

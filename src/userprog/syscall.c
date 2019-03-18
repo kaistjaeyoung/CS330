@@ -27,6 +27,13 @@ unsigned tell (int fd);
 void close (int fd);
 bool compare_fd_value( const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
+static struct fd
+{
+  int fd_value;
+  struct list_elem fd_elem;
+  struct file * file;
+};
+
 void
 syscall_init (void) 
 {
@@ -143,6 +150,10 @@ int read (int fd, void* buffer, unsigned size)
         break;
       }
     }
+  } else {
+    // 1. 현재 쓰레드의 fd_list에서 fd 에 해당하는 file을 찾는다. 
+    // 2. // file_read (struct file *file, void *buffer, off_t size) 로 읽는다. ( 이 함수는 실제로 읽은 byte 리턴 함)
+    // 3 이 숫자 리턴한당 ㅎ 
   }
   return i;
 }
@@ -173,14 +184,15 @@ int open (const char *file)
   if (openfile == NULL) return -1;
 
   struct fd new_fd;
+  new_fd.file = openfile;
    
   if (!list_empty(&thread_current ()->fd_list)) {
-    struct fd *front_fd = list_entry(list_back(&thread_current ()->fd_list), struct fd, fd_elem);
-    new_fd.fd_value = front_fd->fd_value + 1;
+    new_fd.fd_value = thread_current () -> max_fd++;
     list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
     return new_fd.fd_value;
   } else {
     new_fd.fd_value = 3;
+    thread_current() -> max_fd = 3;
     list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
     return 3;
   }
