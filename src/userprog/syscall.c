@@ -56,22 +56,15 @@ syscall_handler (struct intr_frame *f)
       is_valid_addr(f->esp + 4);
       f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
       break; 
-      printf("SYS_WAIT is called\n");
-      break;
     case SYS_CREATE:
-      printf("SYS_CREATE is called\n");
       break;
     case SYS_REMOVE:
-      printf("SYS_REMOVE is called\n");
       break;
     case SYS_OPEN:
-      printf("SYS_OPEN is called\n");
       break;
     case SYS_FILESIZE:
-      printf("SYS_FILESIZE is called\n");
       break;
     case SYS_READ:
-      printf("SYS_READ is called\n");
       break;
     case SYS_WRITE:
       is_valid_addr(f->esp + 4);        
@@ -80,13 +73,10 @@ syscall_handler (struct intr_frame *f)
       f->eax = write((int)fd, (void *)buffer, (unsigned)size);
       break;
     case SYS_SEEK:
-      printf("SYS_SEEK is called\n");
       break;
     case SYS_TELL:
-      printf("SYS_TELL is called\n");
       break;
     case SYS_CLOSE:
-      printf("SYS_CLOSE is called\n");
       break;
     default:
       break;

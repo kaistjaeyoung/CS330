@@ -50,7 +50,6 @@ process_execute (const char *file_name)
   if (file == NULL) {
     return -1;
   }
-  
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (temp, PRI_DEFAULT, start_process, fn_copy);
