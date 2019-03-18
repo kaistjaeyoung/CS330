@@ -7,6 +7,7 @@
 #include "threads/init.h"
 #include "threads/vaddr.h"
 #include "lib/user/syscall.h"
+#include <list.h>
 
 static void syscall_handler (struct intr_frame *);
 
@@ -24,6 +25,7 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+bool compare_fd_value( const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 void
 syscall_init (void) 
@@ -61,6 +63,8 @@ syscall_handler (struct intr_frame *f)
     case SYS_REMOVE:
       break;
     case SYS_OPEN:
+      // if(!is_user_vaddr(f->esp + 4)) exit (-1);
+      f->eax = open((const char *)fd);
       break;
     case SYS_FILESIZE:
       break;
@@ -160,4 +164,35 @@ bool create (const char *file, unsigned initial_size)
   if (strcmp(file, "") == 0) return false;
   if (file == NULL) exit(-1);
   return filesys_create(file, initial_size);
+}
+
+int open (const char *file)
+{
+  if (file == NULL) exit(-1);
+  struct file * openfile = filesys_open(file);
+  if (openfile == NULL) return -1;
+
+  struct fd new_fd;
+   
+  if (!list_empty(&thread_current ()->fd_list)) {
+    struct fd *front_fd = list_entry(list_back(&thread_current ()->fd_list), struct fd, fd_elem);
+    new_fd.fd_value = front_fd->fd_value + 1;
+    list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
+    return new_fd.fd_value;
+  } else {
+    new_fd.fd_value = 3;
+    list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
+    return 3;
+  }
+}
+
+bool compare_fd_value(
+  const struct list_elem *a,
+  const struct list_elem *b,
+  void *aux UNUSED)
+{
+  if (list_entry (a, struct fd, fd_elem)->fd_value > list_entry (b, struct fd, fd_elem) -> fd_value)
+    return true;
+  else 
+    return false;
 }
