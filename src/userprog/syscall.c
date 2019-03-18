@@ -49,12 +49,13 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
-      // f->eax = exec((const char *)fd);
-      f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
+      f->eax = exec((const char *)fd);
+      // f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_WAIT:
       is_valid_addr(f->esp + 4);
-      f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
+      f->eax = wait((pid_t)fd);
+      // f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
       break; 
     case SYS_CREATE:
       break;
@@ -81,8 +82,6 @@ syscall_handler (struct intr_frame *f)
     default:
       break;
   }
-
-  // printf ("system call!\n");
 }
 
 /* Reads a byte at user virtual address UADDR.
