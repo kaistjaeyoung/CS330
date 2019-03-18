@@ -31,6 +31,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  char temp[256];
 
   char *next_ptr;
 
@@ -40,11 +41,19 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (temp, file_name, PGSIZE);
 
-  file_name = strtok_r((char *) file_name, " ", &next_ptr);
+  strtok_r((char *) temp, " ", &next_ptr);
+
+  struct file *file = NULL;
+  file = filesys_open (temp);
+  if (file == NULL) {
+    return -1;
+  }
+  
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (temp, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
