@@ -169,10 +169,10 @@ process_wait (tid_t child_tid)
   for (e = list_begin(&(thread_current()->child_list)); e != list_end(&(thread_current()->child_list)); e = list_next(e)) {
     t = list_entry(e, struct thread, child_elem);
     if (child_tid == t->tid) {
-      sema_down(&(t->child_lock));
+      sema_down(&(t->child_sema));
       exit_status = t->exit_status;
       list_remove(&(t->child_elem));
-      sema_up(&(t->mem_lock));
+      sema_up(&(t->die_sema));
       return exit_status;
     }
   }
@@ -205,8 +205,8 @@ process_exit (void)
     }
 
   // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
-  sema_up(&(curr->child_lock));
-  sema_down(&(curr->mem_lock));
+  sema_up(&(curr->child_sema));
+  sema_down(&(curr->die_sema));
 }
 
 /* Sets up the CPU for running user code in the current

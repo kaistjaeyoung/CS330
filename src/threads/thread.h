@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,10 +97,17 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-#endif
 
+    struct semaphore child_sema;        /* each thread is child of some parent, also has a lock for parent to wait me */
+    struct semaphore die_sema;          /* after parent remove me, sema_up my die_sema */
+    struct list child_list;             /* parent have child threads */
+    struct list_elem child_elem;
+    int exit_status;
+#endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+
   };
 
 /* If false (default), use round-robin scheduler.
