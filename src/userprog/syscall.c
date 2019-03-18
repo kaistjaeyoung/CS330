@@ -50,14 +50,13 @@ syscall_handler (struct intr_frame *f)
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
       f->eax = exec((const char *)fd);
-      // f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_WAIT:
       is_valid_addr(f->esp + 4);
       f->eax = wait((pid_t)fd);
-      // f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
       break; 
     case SYS_CREATE:
+      f->eax = create((const char *)fd, (unsigned) buffer);
       break;
     case SYS_REMOVE:
       break;
@@ -156,3 +155,8 @@ int write (int fd, const void *buffer, unsigned size)
   return -1; 
 }
 
+bool create (const char *file, unsigned initial_size)
+{
+  if (strcmp(file, "") == 0) return false;
+  return true;
+}
