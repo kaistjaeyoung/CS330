@@ -81,9 +81,13 @@ syscall_handler (struct intr_frame *f)
       f->eax = create((const char *)fd, (unsigned) buffer);
       break;
     case SYS_REMOVE:
+      is_valid_addr(f->esp + 4);
+      f->eax = remove((const char *)fd);
       break;
     case SYS_OPEN:
-      // if(!is_user_vaddr(f->esp + 4)) exit (-1);
+      is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 8);        
+      is_valid_addr(f->esp + 12);
       f->eax = open((const char *)fd);
       break;
     case SYS_FILESIZE:
@@ -103,8 +107,12 @@ syscall_handler (struct intr_frame *f)
       f->eax = write((int)fd, (void *)buffer, (unsigned)size);
       break;
     case SYS_SEEK:
+      is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 8);
+      seek((int)fd, (unsigned)buffer);
       break;
     case SYS_TELL:
+      printf("call tell\n");
       break;
     case SYS_CLOSE:
       is_valid_addr(f->esp + 4);        
@@ -229,7 +237,6 @@ int open (const char *file)
 
   struct fd  * new_fd = (struct fd*) malloc(sizeof(struct fd));
   new_fd->file = openfile;
-
    
   if (!list_empty(&thread_current ()->fd_list)) {
     new_fd->fd_value = thread_current () -> max_fd++;
@@ -282,6 +289,25 @@ void close (int fd)
     {
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
         close(list_entry(e, struct fd, fd_elem)->file);
+      }
+    }
+}
+
+bool remove (const char *file)
+{
+  return filesys_remove(file);
+}
+
+void seek (int fd, unsigned position)
+{
+  struct thread * curr;
+  struct list_elem * e;
+
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+        file_seek(list_entry(e, struct fd, fd_elem)->file, position);
       }
     }
 }
