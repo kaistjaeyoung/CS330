@@ -37,8 +37,8 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
-bool compare_fd_value( const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-struct fd * find_fd(int fd);
+
+static struct lock syscall_lock;
 
 static struct fd
 {
@@ -50,6 +50,7 @@ static struct fd
 void
 syscall_init (void) 
 {
+  lock_init (&syscall_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -71,24 +72,34 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       is_valid_addr(f->esp + 4);
+      lock_acquire(&syscall_lock);
       f->eax = exec((const char *)fd);
+      lock_release(&syscall_lock);
       break;
     case SYS_WAIT:
       is_valid_addr(f->esp + 4);
       f->eax = wait((pid_t)fd);
       break; 
     case SYS_CREATE:
+      is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 8);      
+      lock_acquire(&syscall_lock);
       f->eax = create((const char *)fd, (unsigned) buffer);
+      lock_release(&syscall_lock);
       break;
     case SYS_REMOVE:
       is_valid_addr(f->esp + 4);
+      lock_acquire(&syscall_lock);
       f->eax = remove((const char *)fd);
+      lock_release(&syscall_lock);
       break;
     case SYS_OPEN:
       is_valid_addr(f->esp + 4);        
       is_valid_addr(f->esp + 8);        
       is_valid_addr(f->esp + 12);
+      lock_acquire(&syscall_lock);
       f->eax = open((const char *)fd);
+      lock_release(&syscall_lock);
       break;
     case SYS_FILESIZE:
       is_valid_addr(f->esp + 4);
@@ -98,13 +109,17 @@ syscall_handler (struct intr_frame *f)
       is_valid_addr(f->esp + 4);        
       is_valid_addr(f->esp + 8);        
       is_valid_addr(f->esp + 12);
+      lock_acquire(&syscall_lock);
       f->eax = read((int)fd, (void *)buffer, (unsigned)size);
+      lock_release(&syscall_lock);
       break;
     case SYS_WRITE:
       is_valid_addr(f->esp + 4);        
       is_valid_addr(f->esp + 8);        
-      is_valid_addr(f->esp + 12);        
+      is_valid_addr(f->esp + 12);
+      lock_acquire(&syscall_lock);  
       f->eax = write((int)fd, (void *)buffer, (unsigned)size);
+      lock_release(&syscall_lock);
       break;
     case SYS_SEEK:
       is_valid_addr(f->esp + 4);        
@@ -217,7 +232,6 @@ int write (int fd, const void *buffer, unsigned size)
         }
       }
       return write_size;
-
   }
   return -1; 
 }
@@ -237,7 +251,12 @@ int open (const char *file)
 
   struct fd  * new_fd = (struct fd*) malloc(sizeof(struct fd));
   new_fd->file = openfile;
-   
+
+  // if the file is on running process, deny write (by jy)
+  if ( strcmp(thread_current()->name, file)==0 ) {
+    file_deny_write(openfile);
+  }
+  
   if (!list_empty(&thread_current ()->fd_list)) {
     new_fd->fd_value = thread_current () -> max_fd++;
     list_push_back(&thread_current ()->fd_list, &new_fd->fd_elem);
@@ -248,21 +267,6 @@ int open (const char *file)
     list_push_back(&thread_current ()->fd_list, &new_fd->fd_elem);
     return 3;
   }
-}
-
-struct fd * find_fd(int fd)
-{
-  struct thread * curr;
-  struct list_elem * e;
-  
-  curr = thread_current ();
-  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
-    {
-      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
-        printf("we are same!! \n");
-        return list_entry(e, struct fd, fd_elem);
-      }
-    }
 }
 
 int filesize (int fd)
