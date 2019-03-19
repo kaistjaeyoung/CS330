@@ -7,9 +7,21 @@
 #include "threads/init.h"
 #include "threads/vaddr.h"
 #include "lib/user/syscall.h"
+#include "threads/malloc.h"
 #include <list.h>
+#include "filesys/file.h"
+#include "filesys/off_t.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
+
+/* An open file. */
+struct file 
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;                  /* Current position. */
+    bool deny_write;            /* Has file_deny_write() been called? */
+  };
 
 void halt (void);
 void exit (int status);
@@ -26,6 +38,7 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 bool compare_fd_value( const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+struct fd * find_fd(int fd);
 
 static struct fd
 {
@@ -74,8 +87,14 @@ syscall_handler (struct intr_frame *f)
       f->eax = open((const char *)fd);
       break;
     case SYS_FILESIZE:
+      is_valid_addr(f->esp + 4);
+      f->eax = filesize ((int)fd);
       break;
     case SYS_READ:
+      is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 8);        
+      is_valid_addr(f->esp + 12);
+      f->eax = read((int)fd, (void *)buffer, (unsigned)size);
       break;
     case SYS_WRITE:
       is_valid_addr(f->esp + 4);        
@@ -146,16 +165,26 @@ int read (int fd, void* buffer, unsigned size)
   int i;
   if (fd == 0) {
     for (i = 0; i < size; i ++) {
+      ((char *)buffer)[i] = input_getc();
       if (((char *)buffer)[i] == '\0') {
         break;
       }
     }
-  } else {
-    // 1. 현재 쓰레드의 fd_list에서 fd 에 해당하는 file을 찾는다. 
-    // 2. // file_read (struct file *file, void *buffer, off_t size) 로 읽는다. ( 이 함수는 실제로 읽은 byte 리턴 함)
-    // 3 이 숫자 리턴한당 ㅎ 
-  }
   return i;
+  } else {
+  struct thread * curr;
+  struct list_elem * e;
+  off_t reading_size = 0;
+  
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+        reading_size = file_read(list_entry(e, struct fd, fd_elem)->file, buffer, size);
+      }
+    }
+    return reading_size;
+  }
 }
 
 
@@ -183,28 +212,48 @@ int open (const char *file)
   struct file * openfile = filesys_open(file);
   if (openfile == NULL) return -1;
 
-  struct fd new_fd;
-  new_fd.file = openfile;
+  struct fd  * new_fd = (struct fd*) malloc(sizeof(struct fd));
+  new_fd->file = openfile;
+
    
   if (!list_empty(&thread_current ()->fd_list)) {
-    new_fd.fd_value = thread_current () -> max_fd++;
-    list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
-    return new_fd.fd_value;
+    new_fd->fd_value = thread_current () -> max_fd++;
+    list_push_back(&thread_current ()->fd_list, &new_fd->fd_elem);
+    return new_fd->fd_value;
   } else {
-    new_fd.fd_value = 3;
+    new_fd->fd_value = 3;
     thread_current() -> max_fd = 3;
-    list_push_back(&thread_current ()->fd_list, &new_fd.fd_elem);
+    list_push_back(&thread_current ()->fd_list, &new_fd->fd_elem);
     return 3;
   }
 }
 
-bool compare_fd_value(
-  const struct list_elem *a,
-  const struct list_elem *b,
-  void *aux UNUSED)
+struct fd * find_fd(int fd)
 {
-  if (list_entry (a, struct fd, fd_elem)->fd_value > list_entry (b, struct fd, fd_elem) -> fd_value)
-    return true;
-  else 
-    return false;
+  struct thread * curr;
+  struct list_elem * e;
+  
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+        printf("we are same!! \n");
+        return list_entry(e, struct fd, fd_elem);
+      }
+    }
+}
+
+int filesize (int fd)
+{
+  struct thread * curr;
+  struct list_elem * e;
+  off_t file_size = 0;
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+        file_size = file_length(list_entry(e, struct fd, fd_elem)->file);
+      }
+    }
+  return file_size;
 }
