@@ -107,6 +107,8 @@ syscall_handler (struct intr_frame *f)
     case SYS_TELL:
       break;
     case SYS_CLOSE:
+      is_valid_addr(f->esp + 4);        
+      close((int)fd);
       break;
     default:
       break;
@@ -187,7 +189,6 @@ int read (int fd, void* buffer, unsigned size)
   }
 }
 
-
 int write (int fd, const void *buffer, unsigned size)
 {
   if (fd == 1) {
@@ -195,6 +196,20 @@ int write (int fd, const void *buffer, unsigned size)
     should write all of buffer in one call to putbuf()*/
     putbuf(buffer, size);
     return size;
+  } else {
+    struct thread * curr;
+    struct list_elem * e;
+    off_t write_size = 0;
+  
+    curr = thread_current ();
+    for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+      {
+        if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+          write_size = file_write(list_entry(e, struct fd, fd_elem)->file, buffer, size);
+        }
+      }
+      return write_size;
+
   }
   return -1; 
 }
@@ -256,4 +271,17 @@ int filesize (int fd)
       }
     }
   return file_size;
+}
+
+void close (int fd)
+{
+  struct thread * curr;
+  struct list_elem * e;
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+        close(list_entry(e, struct fd, fd_elem)->file);
+      }
+    }
 }
