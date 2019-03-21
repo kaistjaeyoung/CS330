@@ -97,7 +97,8 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-
+    struct thread* parent_thread;
+    struct semaphore load_sema;
     struct semaphore child_sema;        /* each thread is child of some parent, also has a lock for parent to wait me */
     struct semaphore die_sema;          /* after parent remove me, sema_up my die_sema */
     struct list child_list;             /* parent have child threads */
@@ -105,6 +106,7 @@ struct thread
     int exit_status;
     struct list fd_list;                /* file descripter list */
     int max_fd;
+    int return_status; 
 #endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

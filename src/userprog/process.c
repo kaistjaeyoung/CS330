@@ -22,6 +22,13 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+static struct fd
+{
+  int fd_value;
+  struct list_elem fd_elem;
+  struct file * file;
+};
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -53,8 +60,21 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (temp, PRI_DEFAULT, start_process, fn_copy);
+
+  struct thread * curr = thread_current();
+  sema_down(&(curr->load_sema));
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  struct list_elem* e;
+  struct thread* t;
+
+  for (e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)) {
+  t = list_entry(e, struct thread, child_elem);
+    if (t->return_status == -1) {
+      return process_wait(tid);
+    }
+  }
 
   return tid;
 }
@@ -132,12 +152,19 @@ start_process (void *f_name)
   // if load succeeded, grow stack
   if (success) {
     push_argv_to_stack(&tokens_array, i, &if_.esp);
+    // by jy
+    // file_deny_write(f_name);
   }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  struct thread * curr = thread_current ();
+  sema_up(&thread_current ()->parent_thread->load_sema);
+  if (!success) {
+    curr -> return_status = -1;
+    exit(-1);
+  }
+    // thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -212,9 +239,18 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
+  // by jy
+  struct list_elem * e;
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      // file_allow_write(list_entry(e, struct fd, fd_elem)->file);
+    }
+
   // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
   sema_up(&(curr->child_sema));
   sema_down(&(curr->die_sema));
+
+  
 }
 
 /* Sets up the CPU for running user code in the current

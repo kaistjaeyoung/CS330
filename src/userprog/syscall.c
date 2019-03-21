@@ -172,6 +172,15 @@ void exit (int status)
   If the process's parent waits for it (see below), this is the status that will be returned.
   Conventionally, a status of 0 indicates success and nonzero values indicate errors.*/
   thread_current() -> exit_status = status; // ( by jy )
+
+  struct thread * curr;
+  struct list_elem * e;
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      close(list_entry(e, struct fd, fd_elem)->file);
+    }
+
   thread_exit();
 }
 

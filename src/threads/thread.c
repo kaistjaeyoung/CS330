@@ -446,6 +446,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   #ifdef USERPROG
+    t->parent_thread = running_thread ();
+    sema_init(&(t->load_sema), 0); 
     sema_init(&(t->child_sema), 0); 
     sema_init(&(t->die_sema), 0);
     list_init(&(t->child_list));
