@@ -228,6 +228,11 @@ int write (int fd, const void *buffer, unsigned size)
     for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
       {
         if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+          // by jy
+          if ( strcmp(thread_current()->name, list_entry(e, struct fd, fd_elem))==0 ) {
+            file_deny_write(list_entry(e, struct fd, fd_elem)->file);
+          }
+          
           write_size = file_write(list_entry(e, struct fd, fd_elem)->file, buffer, size);
         }
       }
@@ -253,9 +258,9 @@ int open (const char *file)
   new_fd->file = openfile;
 
   // if the file is on running process, deny write (by jy)
-  if ( strcmp(thread_current()->name, file)==0 ) {
-    file_deny_write(openfile);
-  }
+  // if ( strcmp(thread_current()->name, file)==0 ) {
+  //   file_deny_write(openfile);
+  // }
   
   if (!list_empty(&thread_current ()->fd_list)) {
     new_fd->fd_value = thread_current () -> max_fd++;
