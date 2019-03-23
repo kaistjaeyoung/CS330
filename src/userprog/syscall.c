@@ -37,6 +37,7 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+struct fd * find_fd(struct thread * curr, int fd);
 
 static struct lock syscall_lock;
 
@@ -130,7 +131,7 @@ syscall_handler (struct intr_frame *f)
       printf("call tell\n");
       break;
     case SYS_CLOSE:
-      is_valid_addr(f->esp + 4);        
+      is_valid_addr(f->esp + 4);     
       close((int)fd);
       break;
     default:
@@ -176,9 +177,11 @@ void exit (int status)
   struct thread * curr;
   struct list_elem * e;
   curr = thread_current ();
-  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+
+   while (!list_empty (&curr->fd_list))
     {
-      close(list_entry(e, struct fd, fd_elem)->file);
+      e = list_begin (&curr->fd_list);
+      close (list_entry (e, struct fd, fd_elem)->fd_value);
     }
 
   thread_exit();
@@ -298,12 +301,24 @@ void close (int fd)
   struct thread * curr;
   struct list_elem * e;
   curr = thread_current ();
+  struct fd * obj_fd = find_fd(curr, fd);
+  if (!obj_fd) return 0;
+  file_close(obj_fd->file);
+  list_remove(&obj_fd->fd_elem);
+  free(obj_fd);
+  return 0;
+}
+
+struct fd * find_fd(struct thread * curr, int fd) {
+  struct list_elem * e;
   for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
     {
-      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
-        close(list_entry(e, struct fd, fd_elem)->file);
+      struct fd* obj_fd= list_entry(e, struct fd, fd_elem);
+      if (obj_fd->fd_value == fd) {
+        return obj_fd;
       }
     }
+  return NULL;
 }
 
 bool remove (const char *file)
