@@ -21,6 +21,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+struct thread* find_specific_child_thread(int specific_tid);
 
 static struct fd
 {
@@ -152,8 +153,6 @@ start_process (void *f_name)
   // if load succeeded, grow stack
   if (success) {
     push_argv_to_stack(&tokens_array, i, &if_.esp);
-    // by jy
-    // file_deny_write(f_name);
   }
 
   /* If load failed, quit. */
@@ -164,7 +163,6 @@ start_process (void *f_name)
     curr -> return_status = -1;
     exit(-1);
   }
-    // thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -190,29 +188,36 @@ start_process (void *f_name)
 int
 process_wait (tid_t child_tid) 
 {
-  // by jh
-  // int a = 0, i;
-  // for(i=0; i<10000 * 7000; ++i) a += i;
-  // ASSERT(a != 0);
-  // return -1;
+  int exit_status;
+  struct thread * specfic_child_thread = NULL;
 
-  // wait child process to do 'sema_up' ( by jy )
+  specfic_child_thread = find_specific_child_thread(child_tid);
+
+  if (specfic_child_thread == NULL) return -1;
+
+  sema_down(&(specfic_child_thread->child_sema));
+  exit_status = specfic_child_thread->exit_status;
+  list_remove(&(specfic_child_thread->child_elem));
+  sema_up(&(specfic_child_thread->die_sema));
+  return exit_status;
+
+}
+
+// find_specific_child_thread with specific_tid 
+struct thread * 
+find_specific_child_thread(int specific_tid)
+{
   struct list_elem* e;
   struct thread* t = NULL;
-  int exit_status;
-
-  for (e = list_begin(&(thread_current()->child_list)); e != list_end(&(thread_current()->child_list)); e = list_next(e)) {
+  e = list_begin(&(thread_current()->child_list));
+  while ( e != list_end(&(thread_current()->child_list)) ) {
     t = list_entry(e, struct thread, child_elem);
-    if (child_tid == t->tid) {
-      sema_down(&(t->child_sema));
-      exit_status = t->exit_status;
-      list_remove(&(t->child_elem));
-      sema_up(&(t->die_sema));
-      return exit_status;
+    if (specific_tid == t->tid) {
+      return t;
     }
+    e = list_next(e);
   }
-  return -1;
-
+  return NULL;
 }
 
 /* Free the current process's resources. */
@@ -237,13 +242,6 @@ process_exit (void)
       curr->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-    }
-
-  // by jy
-  struct list_elem * e;
-  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
-    {
-      // file_allow_write(list_entry(e, struct fd, fd_elem)->file);
     }
 
   // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
