@@ -71,7 +71,7 @@ process_execute (const char *file_name)
   struct thread* t;
 
   for (e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)) {
-  t = list_entry(e, struct thread, child_elem);
+    t = list_entry(e, struct thread, child_elem);
     if (t->return_status == -1) {
       return process_wait(tid);
     }

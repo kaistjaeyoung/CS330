@@ -149,17 +149,6 @@ void is_valid_addr(void *uaddr)
   if(!is_user_vaddr(uaddr)) exit (-1);
 }
 
-static int
-get_user (const uint8_t *uaddr)
-{
-  // if (! ((void*)uaddr < PHYS_BASE)) {
-  //   return -1;
-  // }
-  int result;
-  asm ("movl $1f, %0; movzbl %1, %0; 1:"
-       : "=&a" (result) : "m" (*uaddr));
-  return result;
-}
 
 void halt(void) 
 {
@@ -301,24 +290,23 @@ void close (int fd)
   struct thread * curr;
   struct list_elem * e;
   curr = thread_current ();
-  struct fd * obj_fd = find_fd(curr, fd);
-  if (!obj_fd) return 0;
+  struct fd * obj_fd = NULL;
+
+  e = list_begin(&curr->fd_list);
+  while ( e != list_end(&curr->fd_list) ) {
+    struct fd* f = list_entry(e, struct fd, fd_elem);
+    if (f->fd_value == fd) {
+      obj_fd = f;
+      break;
+    }
+    e = list_next(e);
+  }
+
+  if (!obj_fd) return ;
   file_close(obj_fd->file);
   list_remove(&obj_fd->fd_elem);
   free(obj_fd);
-  return 0;
-}
-
-struct fd * find_fd(struct thread * curr, int fd) {
-  struct list_elem * e;
-  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
-    {
-      struct fd* obj_fd= list_entry(e, struct fd, fd_elem);
-      if (obj_fd->fd_value == fd) {
-        return obj_fd;
-      }
-    }
-  return NULL;
+  return ;
 }
 
 bool remove (const char *file)
