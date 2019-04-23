@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -45,9 +47,11 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
+
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+
   strlcpy (fn_copy, file_name, PGSIZE);
   strlcpy (temp, file_name, PGSIZE);
 
@@ -244,11 +248,9 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
+  // before child is end, sema_up and after that die_sema sema_up, do sema_down ( by jy )
   sema_up(&(curr->child_sema));
   sema_down(&(curr->die_sema));
-
-  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -532,7 +534,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = palloc_get_page(PAL_USER);
       if (kpage == NULL)
         return false;
 
@@ -568,7 +570,7 @@ setup_stack (void **esp)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
