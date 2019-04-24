@@ -109,7 +109,8 @@ struct thread
     int return_status; 
 #endif
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+
+    unsigned magic;                     /* Detects stack overflow. */    
 };
 
 /* If false (default), use round-robin scheduler.

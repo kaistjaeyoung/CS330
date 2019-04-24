@@ -63,68 +63,54 @@ syscall_handler (struct intr_frame *f)
   int buffer = *(int *)(f->esp + 8);
   int size = *(int *)(f->esp + 12);
 
+  is_valid_addr(f->esp + 4);
+  is_valid_addr(f->esp + 8);   
+  is_valid_addr(f->esp + 12);         
+
   switch(syscall_number) {
     case SYS_HALT:
       halt ();
       break;
     case SYS_EXIT:
-      is_valid_addr(f->esp + 4);
       exit(fd);
       break;
     case SYS_EXEC:
-      is_valid_addr(f->esp + 4);
       lock_acquire(&syscall_lock);
       f->eax = exec((const char *)fd);
       lock_release(&syscall_lock);
       break;
     case SYS_WAIT:
-      is_valid_addr(f->esp + 4);
       f->eax = wait((pid_t)fd);
       break; 
     case SYS_CREATE:
-      is_valid_addr(f->esp + 4);        
-      is_valid_addr(f->esp + 8);      
       lock_acquire(&syscall_lock);
       f->eax = create((const char *)fd, (unsigned) buffer);
       lock_release(&syscall_lock);
       break;
     case SYS_REMOVE:
-      is_valid_addr(f->esp + 4);
       lock_acquire(&syscall_lock);
       f->eax = remove((const char *)fd);
       lock_release(&syscall_lock);
       break;
     case SYS_OPEN:
-      is_valid_addr(f->esp + 4);        
-      is_valid_addr(f->esp + 8);        
-      is_valid_addr(f->esp + 12);
       lock_acquire(&syscall_lock);
       f->eax = open((const char *)fd);
       lock_release(&syscall_lock);
       break;
     case SYS_FILESIZE:
-      is_valid_addr(f->esp + 4);
       f->eax = filesize ((int)fd);
       break;
     case SYS_READ:
-      is_valid_addr(f->esp + 4);        
-      is_valid_addr(f->esp + 8);        
-      is_valid_addr(f->esp + 12);
       lock_acquire(&syscall_lock);
       f->eax = read((int)fd, (void *)buffer, (unsigned)size);
       lock_release(&syscall_lock);
       break;
     case SYS_WRITE:
-      is_valid_addr(f->esp + 4);        
-      is_valid_addr(f->esp + 8);        
-      is_valid_addr(f->esp + 12);
       lock_acquire(&syscall_lock);  
       f->eax = write((int)fd, (void *)buffer, (unsigned)size);
       lock_release(&syscall_lock);
       break;
     case SYS_SEEK:
-      is_valid_addr(f->esp + 4);        
-      is_valid_addr(f->esp + 8);
       seek((int)fd, (unsigned)buffer);
       break;
     case SYS_TELL:
@@ -167,8 +153,7 @@ void exit (int status)
   struct list_elem * e;
   curr = thread_current ();
 
-   while (!list_empty (&curr->fd_list))
-    {
+   while (!list_empty (&curr->fd_list)) {
       e = list_begin (&curr->fd_list);
       close (list_entry (e, struct fd, fd_elem)->fd_value);
     }

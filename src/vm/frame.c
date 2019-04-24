@@ -33,9 +33,8 @@ allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ?
 
  */
 void *
-allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? 
+allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? (originally *addr)
 {
-
     // 1. 새로 프레임을 할당하고 
     // 2. 프레임 테이블에 집어넣는다. 
     // addr = palloc_get_page(___? );
@@ -58,5 +57,11 @@ allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ?
       return NULL;
     else
       return addr;
+}
+
+void *
+free_frame(void * addr)
+{
+
 }
 
