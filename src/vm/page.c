@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include "threads/palloc.h"
 
 // static struct list sup_page_table;
@@ -33,16 +34,40 @@ page_init (void)
  * Supplementary page table should be allocated when the page_dir created
  */
 
-struct sup_page_table_entry *
-allocate_page (void *addr)
+bool
+allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_byte, size_t zero_byte, struct file* file, bool writable)
 {
+     if (file_read (file, kpage, read_byte) != (int) read_byte)
+        {
+          free_frame (kpage);
+          return false; 
+        }
+      memset (kpage + read_byte, 0, zero_byte);
+
+      /* Add the page to the process's address space. */
+      struct thread *t = thread_current ();
+
+      /* Verify that there's not already a page at that virtual
+        address, then map our page there. */
+      // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
+      bool success = pagedir_get_page (t->pagedir, upage) == NULL
+              && pagedir_set_page (t->pagedir, upage, kpage, writable);
+      if (!success) 
+        {
+          free_frame (kpage);
+          return false; 
+        }
     lock_acquire(&thread_current()->sup_lock);
 
     // make spte 
     struct sup_page_table_entry * spte = malloc(sizeof(struct sup_page_table_entry));
-    spte->user_vaddr = addr;
+    spte->user_vaddr = upage;
     spte->accessed = true;
-    spte->flag = FILE;
+    spte->flag = flag;
+    spte->read_byte = read_byte;
+    spte->zero_byte = zero_byte;
+    spte->file = file;
+    spte->writable = writable;
 
     // push spte to the list
     list_push_back(&thread_current()->sup_table, &spte->elem);
@@ -51,30 +76,39 @@ allocate_page (void *addr)
     return spte;
 }
 
-void page_fault_handler(void *upage, uint32_t *pagedir)
+bool page_fault_handler(void *upage, uint32_t *pagedir)
 {
     // 1. table 돌면서 addr 에 해당하는 spte 있는지 찾음
     // 없으면 ㄴㄴ...
     struct sup_page_table_entry * spte = lookup_page(upage);
-    if (spte == NULL)
+    if (spte == NULL) {
+        // printf("in first\n");
         exit(-1);
+    }
 
     //2. Obtain a frame to store the page. 
     // frame_allocate로 할당하기 
     void *frame = allocate_frame(PAL_USER);
-    if (frame == NULL)
+    if (frame == NULL) {
+        // printf("in second\n");
         exit(-1);
+    }
 
     // 3. Fetch the data into the frame, by reading it from the file system or swap, zeroing it, etc.
     // 이 부분 switch 로 바꾸기
     switch(spte -> flag)
     {
-      case FILE: 
+      case PAGE_FILE: 
         break;
-      case SWAP:
+      case PAGE_SWAP:
         break;  
-      case ALL_ZERO:
+      case PAGE_ALL_ZERO:
         memset (frame, 0, PGSIZE);
+        break;
+      case PAGE_MMAP:
+        // printf("COME TO MMAP\n");
+        memset (frame, 0, PGSIZE);
+        break;
       default:
         exit(-1);
     }
@@ -83,11 +117,13 @@ void page_fault_handler(void *upage, uint32_t *pagedir)
     // to the physical page. You can use the functions in userprog/pagedir.c.
     if (!pagedir_set_page (pagedir, upage, frame, /*writable*/true)) {
         free_frame(frame);
+        // printf("in fourth\n");
         exit(-1);
     }
 
-    spte->flag = FILE;
+    spte->flag = PAGE_FILE;
     pagedir_set_dirty (pagedir, frame, false);
+    return true;
 }
 
 struct sup_page_table_entry *

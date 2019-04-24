@@ -13,9 +13,10 @@ the supplemental page table when a process terminates, to decide what resources 
 /* How to allocate pages. */
 enum spte_flags
   {
-    FILE = 001,           /* Panic on failure. */
-    SWAP = 002,             /* Zero page contents. */
-    ALL_ZERO = 003              /* User page. */
+    PAGE_FILE = 001,          
+    PAGE_SWAP = 002,           
+    PAGE_ALL_ZERO = 003,
+	PAGE_MMAP = 004,           
   };
 
 
@@ -23,20 +24,22 @@ struct sup_page_table_entry
 {
 	uint32_t* user_vaddr;
 	uint64_t access_time;
+	size_t read_byte;
+	size_t zero_byte;
+	struct file* file;
+	bool writable;
 
 	bool dirty;
 	bool accessed;
 
 	enum spte_flags flag;
 
-	// page_table_entry status 만들어야 함. 
-
 	struct list_elem elem;              /* List element. */
 };
 
 void page_init (void);
-struct sup_page_table_entry *allocate_page (void *addr);
-void page_fault_handler(void *upage, uint32_t *pagedir);
+bool allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_byte, size_t zero_byte, struct file* file, bool writable);
+bool page_fault_handler(void *upage, uint32_t *pagedir);
 struct sup_page_table_entry *lookup_page(void *addr);
 
 #endif /* vm/page.h */

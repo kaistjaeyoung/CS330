@@ -19,7 +19,7 @@ frame_init (void) // Frame table init
 // 2. 테이블(리스트) 이니셜라이즈 
 // Where should this frame table located? <- 여기
 // list 를 만들어줘야 하는 곳 어디? <- 여기
-// initialize 해 줘야 하는 곳 어디? <- 여기
+// initialize 해 줘야 하는 곳 어디? <- 여기sdfsa
 
   list_init (&frame_table);
   lock_init (&frame_lock);

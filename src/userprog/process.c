@@ -543,19 +543,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         return false;
 
       /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          free_frame (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     free_frame (kpage);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          free_frame (kpage);
-          return false; 
-        }
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     free_frame (kpage);
+      //     return false; 
+      //   }
+      allocate_page(upage, kpage, PAGE_FILE, page_read_bytes, page_zero_bytes, file, writable);
+      //  저 위에 있는 걸 한번에 묶어서 해 줄 방법 없니? install page 가 성공하면 .. 흠 ..
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -604,10 +606,11 @@ install_page (void *upage, void *kpage, bool writable)
   // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
   bool success = pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable);
-  if (success) 
-    allocate_page(upage);
+  // if (success) 
+  //   allocate_page(upage, PAGE_FILE);
   return success;
   // return (pagedir_get_page (t->pagedir, upage) == NULL
   //         && pagedir_set_page (t->pagedir, upage, kpage, writable));
 
 }
+

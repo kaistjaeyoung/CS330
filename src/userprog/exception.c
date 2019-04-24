@@ -160,12 +160,13 @@ page_fault (struct intr_frame *f)
   struct thread *curr = thread_current(); /* Current thread. */
   void* fault_page = (void*) pg_round_down(fault_addr);
 
-  page_fault_handler(fault_page, curr->pagedir);
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  if (!page_fault_handler(fault_page, curr->pagedir)) {
+   printf ("Page fault at %p: %s error %s page in %s context.\n",
+            fault_addr,
+            not_present ? "not present" : "rights violation",
+            write ? "writing" : "reading",
+            user ? "user" : "kernel");
+   kill (f);
+  }
 }
 

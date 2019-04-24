@@ -12,6 +12,7 @@
 #include "filesys/file.h"
 #include "filesys/off_t.h"
 #include "devices/input.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -38,6 +39,7 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 struct fd * find_fd(struct thread * curr, int fd);
+mapid_t mmap (int fd, void *addr);
 
 static struct lock syscall_lock;
 
@@ -121,6 +123,7 @@ syscall_handler (struct intr_frame *f)
       close((int)fd);
       break;
     case SYS_MMAP:
+      mmap((int)fd, (void *)buffer);
       break;
     default:
       break;
@@ -313,4 +316,24 @@ void seek (int fd, unsigned position)
         file_seek(list_entry(e, struct fd, fd_elem)->file, position);
       }
     }
+}
+
+mapid_t mmap (int fd, void *addr)
+{
+  struct thread * curr;
+  struct list_elem * e;
+
+  curr = thread_current ();
+  for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
+    {
+      if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
+
+      // size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      // size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      // file 도 있어야 함.
+
+        // allocate_page(addr, PAGE_MMAP);
+      }
+    }
+  return -1;
 }
