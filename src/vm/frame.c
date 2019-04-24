@@ -60,8 +60,26 @@ allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? (originall
 }
 
 void *
-free_frame(void * addr)
+free_frame(void * frame)
 {
+  lock_acquire(&frame_lock);
 
+  // Loop list and find appropriate frame and list_remove and pointer free
+  struct list_elem *e;
+  for (e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
+    {
+      struct frame_table_entry *fte = list_entry(e, struct frame_table_entry, elem);
+      if (fte->frame == frame)
+      {
+        list_remove(e);
+        free(fte);
+        break;
+      }
+  }
+  lock_release(&frame_lock);
+
+  // free page
+  palloc_free_page(frame);
 }
+
 

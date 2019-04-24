@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -150,12 +151,16 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   // if the user program try to access kernel address, we have to return -1;
-  if (!user || is_kernel_vaddr(fault_addr)) exit(-1);
-  if (user && not_present) exit (-1);
+//   if (!user || is_kernel_vaddr(fault_addr)) exit(-1);
+//   if (user && not_present) exit (-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
+  struct thread *curr = thread_current(); /* Current thread. */
+  void* fault_page = (void*) pg_round_down(fault_addr);
+
+  page_fault_handler(fault_page, curr->pagedir);
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
