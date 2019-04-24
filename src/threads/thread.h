@@ -109,7 +109,10 @@ struct thread
     int return_status; 
 #endif
     /* Owned by thread.c. */
-
+#ifdef VM
+    struct list sup_table;                /* file descripter list */
+    struct lock sup_lock;
+#endif
     unsigned magic;                     /* Detects stack overflow. */    
 };
 

@@ -101,9 +101,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-  // FOR VM
-  frame_init();
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -456,6 +453,9 @@ init_thread (struct thread *t, const char *name, int priority)
     list_init(&(t->child_list));
     list_init(&(t->fd_list));
     list_push_back(&(running_thread()->child_list), &(t->child_elem));
+  #endif
+  #ifdef VM
+    frame_init();
   #endif
 }
 

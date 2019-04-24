@@ -8,8 +8,8 @@
 #include "userprog/pagedir.h"
 #include "threads/palloc.h"
 
-static struct list sup_page_table;
-static struct lock sup_page_lock;
+// static struct list sup_page_table;
+// static struct lock sup_page_lock;
 
 /*
  * Initialize supplementary page table
@@ -24,8 +24,8 @@ page_init (void)
 // list 를 만들어줘야 하는 곳 어디? <- 여기
 // initialize 해 줘야 하는 곳 어디? <- 여기
 
-  list_init (&sup_page_table);
-  lock_init (&sup_page_lock);
+  list_init (&thread_current()->sup_table);
+  lock_init (&thread_current()->sup_lock);
 }
 
 /*
@@ -36,23 +36,18 @@ page_init (void)
 struct sup_page_table_entry *
 allocate_page (void *addr)
 {
-// 1. 새로 프레임을 할당하고 
-    // 2. 프레임 테이블에 집어넣는다. 
-    // addr = palloc_get_page(___? );
-    lock_acquire(&sup_page_lock);
-    // uint32_t *addr;
-    // allocate physical memory 
-    // addr = palloc_get_page(flags);
+    lock_acquire(&thread_current()->sup_lock);
 
     // make spte 
     struct sup_page_table_entry * spte = malloc(sizeof(struct sup_page_table_entry));
     spte->user_vaddr = addr;
     spte->accessed = true;
+    spte->flag = FILE;
 
     // push spte to the list
-    list_push_back(&sup_page_table, &spte->elem);
+    list_push_back(&thread_current()->sup_table, &spte->elem);
 
-    lock_release(&sup_page_lock);
+    lock_release(&thread_current()->sup_lock);
     return spte;
 }
 
@@ -71,8 +66,18 @@ void page_fault_handler(void *upage, uint32_t *pagedir)
         exit(-1);
 
     // 3. Fetch the data into the frame, by reading it from the file system or swap, zeroing it, etc.
-    if (!spte->accessed)
+    // 이 부분 switch 로 바꾸기
+    switch(spte -> flag)
+    {
+      case FILE: 
+        break;
+      case SWAP:
+        break;  
+      case ALL_ZERO:
         memset (frame, 0, PGSIZE);
+      default:
+        exit(-1);
+    }
     
     // 4. Point the page table entry for the faulting virtual address
     // to the physical page. You can use the functions in userprog/pagedir.c.
@@ -81,7 +86,7 @@ void page_fault_handler(void *upage, uint32_t *pagedir)
         exit(-1);
     }
 
-    spte->accessed = true;
+    spte->flag = FILE;
     pagedir_set_dirty (pagedir, frame, false);
 }
 
@@ -89,7 +94,7 @@ struct sup_page_table_entry *
 lookup_page(void *addr)
 {
   struct list_elem *e;
-  for (e = list_begin(&sup_page_table); e != list_end(&sup_page_table); e = list_next(e))
+  for (e = list_begin(&thread_current()->sup_table); e != list_end(&thread_current()->sup_table); e = list_next(e))
     {
       struct sup_page_table_entry *spte = list_entry(e, struct sup_page_table_entry, elem);
       if (spte->user_vaddr == addr)

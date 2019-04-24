@@ -120,6 +120,8 @@ syscall_handler (struct intr_frame *f)
       is_valid_addr(f->esp + 4);     
       close((int)fd);
       break;
+    case SYS_MMAP:
+      break;
     default:
       break;
   }

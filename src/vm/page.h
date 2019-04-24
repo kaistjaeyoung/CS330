@@ -10,6 +10,15 @@ supplemental page table to find out what data should be there. Second, the kerne
 the supplemental page table when a process terminates, to decide what resources to free.
 */
 
+/* How to allocate pages. */
+enum spte_flags
+  {
+    FILE = 001,           /* Panic on failure. */
+    SWAP = 002,             /* Zero page contents. */
+    ALL_ZERO = 003              /* User page. */
+  };
+
+
 struct sup_page_table_entry 
 {
 	uint32_t* user_vaddr;
@@ -17,6 +26,10 @@ struct sup_page_table_entry
 
 	bool dirty;
 	bool accessed;
+
+	enum spte_flags flag;
+
+	// page_table_entry status 만들어야 함. 
 
 	struct list_elem elem;              /* List element. */
 };
