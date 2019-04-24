@@ -328,11 +328,37 @@ mapid_t mmap (int fd, void *addr)
     {
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
 
-      // size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      // size_t page_zero_bytes = PGSIZE - page_read_bytes;
-      // file 도 있어야 함.
+        struct fd* find_fd_struct = list_entry(e, struct fd, fd_elem);
 
-        // allocate_page(addr, PAGE_MMAP);
+        int read_bytes = file_length(find_fd_struct->file);
+
+        int offset = 0;
+
+        while (read_bytes > 0)
+        {
+          uint32_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+          uint32_t page_zero_bytes = PGSIZE - page_read_bytes;
+          struct sup_page_table_entry * spte = malloc(sizeof(struct sup_page_table_entry));
+          spte->user_vaddr = addr;
+          spte->read_byte = page_read_bytes;
+          spte->zero_byte = page_zero_bytes;
+          spte->file = find_fd_struct->file;
+          spte->writable = true;
+          spte->flag = PAGE_MMAP;
+          spte->offset = offset;
+          spte->accessed = false;
+
+          add_spte_to_table(spte);
+          read_bytes -= page_read_bytes;
+          addr += PGSIZE;
+          offset += page_read_bytes;
+        }
+
+        int new_mapid = thread_current() -> mapid + 1;
+        thread_current() -> mapid = new_mapid;
+
+
+        return new_mapid;
       }
     }
   return -1;

@@ -8,6 +8,8 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "threads/palloc.h"
+#include "filesys/file.h"
+
 
 // static struct list sup_page_table;
 // static struct lock sup_page_lock;
@@ -35,7 +37,15 @@ page_init (void)
  */
 
 bool
-allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_byte, size_t zero_byte, struct file* file, bool writable)
+allocate_page (
+  void *upage,
+  void*kpage,
+  enum spte_flags flag,
+  size_t read_byte,
+  size_t zero_byte,
+  struct file* file,
+  bool writable
+  )
 {
      if (file_read (file, kpage, read_byte) != (int) read_byte)
         {
@@ -76,13 +86,21 @@ allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_byte, 
     return spte;
 }
 
+struct sup_page_table_entry *
+add_spte_to_table(struct sup_page_table_entry *spte)
+{
+  lock_acquire(&thread_current()->sup_lock);
+  list_push_back(&thread_current()->sup_table, &spte->elem);
+  lock_release(&thread_current()->sup_lock);
+}
+
 bool page_fault_handler(void *upage, uint32_t *pagedir)
 {
     // 1. table 돌면서 addr 에 해당하는 spte 있는지 찾음
     // 없으면 ㄴㄴ...
     struct sup_page_table_entry * spte = lookup_page(upage);
     if (spte == NULL) {
-        // printf("in first\n");
+        printf("in first\n");
         exit(-1);
     }
 
@@ -90,7 +108,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     // frame_allocate로 할당하기 
     void *frame = allocate_frame(PAL_USER);
     if (frame == NULL) {
-        // printf("in second\n");
+        printf("in second\n");
         exit(-1);
     }
 
@@ -106,8 +124,18 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
         memset (frame, 0, PGSIZE);
         break;
       case PAGE_MMAP:
-        // printf("COME TO MMAP\n");
-        memset (frame, 0, PGSIZE);
+        if (!handle_page_fault_mmap (
+          spte->user_vaddr,
+          frame,
+          spte->read_byte,
+          spte->zero_byte,
+          spte->file,
+          spte->writable,
+          spte->offset
+        ))
+          printf("not working!!!!!!!\n");
+        // memset (frame, 0, PGSIZE);
+
         break;
       default:
         exit(-1);
@@ -115,15 +143,58 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     
     // 4. Point the page table entry for the faulting virtual address
     // to the physical page. You can use the functions in userprog/pagedir.c.
-    if (!pagedir_set_page (pagedir, upage, frame, /*writable*/true)) {
-        free_frame(frame);
-        // printf("in fourth\n");
-        exit(-1);
-    }
+    // if (!pagedir_set_page (pagedir, upage, frame, /*writable*/true)) {
+    //     free_frame(frame);
+    //     printf("in fourth\n");
+    //     exit(-1);
+    // }
 
     spte->flag = PAGE_FILE;
-    pagedir_set_dirty (pagedir, frame, false);
+    // pagedir_set_dirty (pagedir, frame, false);
     return true;
+}
+
+bool
+handle_page_fault_mmap(
+  void *upage,
+  void*kpage,
+  size_t read_byte,
+  size_t zero_byte,
+  struct file* file,
+  bool writable,
+  int offset
+  )
+{
+  printf("come to this????\n");
+  printf("read_Byte is? %d\n", read_byte);
+  int i = file_read_at (file, kpage, read_byte, offset);
+  printf("file read bye is? %d\n", i);
+  printf("received offset is? %d\n", offset);
+
+  if (file_read_at (file, kpage, read_byte, offset) != (int) read_byte)
+  {
+    printf("wrong here/????!\n");
+    free_frame (kpage);
+    return false; 
+  }
+  memset (kpage + read_byte, 0, zero_byte);
+
+  /* Add the page to the process's address space. */
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+    address, then map our page there. */
+  // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
+  printf("wrong here?1\n");
+  bool success = pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable);
+  printf("wrong here?2\n");
+  if (!success) 
+    {
+      free_frame (kpage);
+      return false; 
+    }
+  return success;
 }
 
 struct sup_page_table_entry *
@@ -140,5 +211,3 @@ lookup_page(void *addr)
   }
   return NULL;
 }
-
-

@@ -456,6 +456,7 @@ init_thread (struct thread *t, const char *name, int priority)
   #endif
   #ifdef VM
     frame_init();
+    t->mapid = 0;
   #endif
 }
 

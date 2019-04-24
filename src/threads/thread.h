@@ -4,6 +4,11 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "userprog/syscall.h"
+#include <stdio.h>
+#include "filesys/off_t.h"
+
+
 
 #include "threads/synch.h"
 
@@ -112,6 +117,7 @@ struct thread
 #ifdef VM
     struct list sup_table;                /* file descripter list */
     struct lock sup_lock;
+    int mapid;
 #endif
     unsigned magic;                     /* Detects stack overflow. */    
 };
