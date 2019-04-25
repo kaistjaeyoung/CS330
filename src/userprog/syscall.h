@@ -3,4 +3,8 @@
 
 void syscall_init (void);
 
+#include "threads/synch.h"
+
+struct lock syscall_lock;
+
 #endif /* userprog/syscall.h */

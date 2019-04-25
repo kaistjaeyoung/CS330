@@ -7,11 +7,14 @@
 #include "threads/vaddr.h"
 #include "vm/page.h"
 
+#define MAX_STACK_SIZE 0x800000
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -157,16 +160,79 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
+
+
+  /* jjyp implement */
+
+  #if VM
+  //   /* Virtual memory handling.
+  //   * First, bring in the page to which fault_addr refers. */
+
+
   struct thread *curr = thread_current(); /* Current thread. */
   void* fault_page = (void*) pg_round_down(fault_addr);
 
+  if (!not_present) {
+    printf("jjy implementation: !not_present!!");
+    if(!user) { // kernel mode
+      f->eip = (void *) f->eax;
+      f->eax = 0xffffffff;
+      return;
+    }
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
+    kill (f);
+  }
+
+  //   /* (4.3.3) Obtain the current value of the user program's stack pointer.
+  //   * If the page fault is from user mode, we can obtain from intr_frame `f`,
+  //   * but we cannot from kernel mode. We've stored the current esp
+  //   * at the beginning of system call into the thread for this case. */
+  void* esp = user ? f->esp : curr->current_esp;
+
+  // Stack Growth
+  bool on_stack_frame, is_stack_addr;
+  on_stack_frame = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
+  is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
+  if (on_stack_frame && is_stack_addr) {
+    // OK. Do     not die.
+    // we need to add new page entry in the SUPT. A promising choice is a zero-page.
+    // printf("Do Stack Growth!\n");
+    // spt_install_new_zeropage (fault_page);
+  }
+
+  //   // if(! vm_load_page(curr->supt, curr->pagedir, fault_page) )
+  //   //   goto PAGE_FAULT_VIOLATED_ACCESS;
+
+  //   // success
+  //   return;
+
+  // PAGE_FAULT_VIOLATED_ACCESS:
+  // #endif
+
+  /* jjyp implement */
+
   if (!page_fault_handler(fault_page, curr->pagedir)) {
-   printf ("Page fault at %p: %s error %s page in %s context.\n",
+    if(!user) { // kernel mode
+      f->eip = (void *) f->eax;
+      f->eax = 0xffffffff;
+      return;
+    }
+
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
             fault_addr,
             not_present ? "not present" : "rights violation",
             write ? "writing" : "reading",
             user ? "user" : "kernel");
-   kill (f);
+    kill (f);
   }
+
+  return;
+
+  #endif
+
 }
 

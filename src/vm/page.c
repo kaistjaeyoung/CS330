@@ -9,6 +9,7 @@
 #include "userprog/process.h"
 #include "threads/palloc.h"
 #include "filesys/file.h"
+#include "userprog/syscall.h"
 
 
 // static struct list sup_page_table;
@@ -16,7 +17,11 @@
 
 /*
  * Initialize supplementary page table
+
  */
+
+int test = 0;
+
 void 
 page_init (void)
 {
@@ -78,6 +83,7 @@ allocate_page (
     spte->zero_byte = zero_byte;
     spte->file = file;
     spte->writable = writable;
+    spte->dirty = false;
 
     // push spte to the list
     list_push_back(&thread_current()->sup_table, &spte->elem);
@@ -86,7 +92,7 @@ allocate_page (
     return spte;
 }
 
-struct sup_page_table_entry *
+void
 add_spte_to_table(struct sup_page_table_entry *spte)
 {
   lock_acquire(&thread_current()->sup_lock);
@@ -94,49 +100,89 @@ add_spte_to_table(struct sup_page_table_entry *spte)
   lock_release(&thread_current()->sup_lock);
 }
 
+struct sup_page_table_entry *
+find_spte(void * uaddr)
+{
+  struct thread * curr = thread_current ();
+  struct list_elem * e;
+  lock_acquire(&curr->sup_lock);
+  for (e = list_begin (&curr->sup_table); e != list_end (&curr->sup_table); e = list_next (e))
+  {
+    struct sup_page_table_entry * spte = list_entry(e, struct sup_page_table_entry, elem);
+      if (spte->user_vaddr == uaddr)
+        lock_release(&curr->sup_lock);
+        return spte;
+  }
+  lock_release(&curr->sup_lock);
+  return NULL;
+}
+
 bool remove_spte_from_table(void *upage, size_t byte, size_t offset)
 {
 
-  // 현재 thread에서 supt_table 에서 받은 address를 가지고 
-    lock_acquire(&thread_current()->sup_lock);
-    // switch(spte -> flag)
-    // {
-    //   case PAGE_FILE: 
-    //     printf("hi ime page file\n");
-    //     break;
-    //   case PAGE_SWAP:
-    //     printf("hi im page swap\n");
-    //     break;  
-    //   case PAGE_ALL_ZERO:
-    //     printf("hi im page all zero\n");
-    //     break;
-    //   case PAGE_MMAP:
-    //     printf("hi im page mmap\n");
-    //     break;
-    //   default:
-    //     return false;
-    // }
-    lock_release(&thread_current()->sup_lock);
+  test += 1;
+  // 현재 thread에서 supt_table 에서 받은 address를 가지고  sup_table 에서 적당한 애를 찾는다. 
+    struct thread* curr = thread_current();
+    // lock_acquire(&curr->sup_lock);
 
+    struct sup_page_table_entry * spte = find_spte(upage);
+    if (spte == NULL) {
+      // lock_release(&curr->sup_lock);
+      return false;
+    }
+    switch(spte -> flag)
+    {
+      case PAGE_FILE: 
+        // if (pagedir_is_dirty(curr->pagedir, upage))
+        // {
+        //   file_write_at(spte->file, spte->user_vaddr, spte->read_byte, spte->offset);
+        //   printf("hey come here??\n");
+        // }
+
+        // free_frame(pagedir_get_page(curr->pagedir, spte->user_vaddr));
+        // pagedir_clear_page(curr->pagedir, spte->user_vaddr);
+
+        lock_release(&curr->sup_lock);
+        return true;
+        break;
+      case PAGE_SWAP:
+        break;  
+      case PAGE_ALL_ZERO:
+        break;
+      case PAGE_MMAP:
+        // spte->
+        // spte -> munmmaped = true;
+        break;
+      default:
+        return false;
+    }
+
+  list_remove(&spte->elem);
+  return true;
 }
 
 bool page_fault_handler(void *upage, uint32_t *pagedir)
 {
     // 1. table 돌면서 addr 에 해당하는 spte 있는지 찾음
     // 없으면 ㄴㄴ...
+    // lock_acquire(&curr->sup_lock);
+
+    struct thread* curr = thread_current ();
+
+    // lock_acquire(&curr->sup_lock);
     struct sup_page_table_entry * spte = lookup_page(upage);
+    // lock_release(&curr->sup_lock);
+
     if (spte == NULL) {
-        // printf("in first\n");
         exit(-1);
+        // return true;
     }
 
     //2. Obtain a frame to store the page. 
     // frame_allocate로 할당하기 
-    // void *frame = allocate_frame(PAL_USER);
-    // if (frame == NULL) {
-    //     // printf("in second\n");
-    //     exit(-1);
-    // }
+    // 
+
+    void *frame;
 
     // 3. Fetch the data into the frame, by reading it from the file system or swap, zeroing it, etc.
     // 이 부분 switch 로 바꾸기
@@ -147,17 +193,20 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
       case PAGE_SWAP:
         break;  
       case PAGE_ALL_ZERO:
-        // memset (frame, 0, PGSIZE);
+        frame = allocate_frame(PAL_USER);
+        if (frame == NULL) {
+            exit(-1);
+        }
+        memset (frame, 0, PGSIZE);
         break;
       case PAGE_MMAP:
         if (!handle_page_fault_mmap (spte))
           exit(-1);
           // printf("not working!!!!!!!\n");
         // memset (frame, 0, PGSIZE);
-
         break;
       default:
-        exit(-1);
+        return true;
     }
     
     // 4. Point the page table entry for the faulting virtual address
@@ -169,7 +218,6 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     // }
 
     spte->flag = PAGE_FILE;
-    // pagedir_set_dirty (pagedir, frame, false);
     return true;
 }
 
@@ -180,11 +228,20 @@ handle_page_fault_mmap(struct sup_page_table_entry * spte)
   if (frame == NULL)
       return false;
 
+  spte->flag = PAGE_FILE; // 여기서 바꿔 주는데..? 뀨 데스네 
+  spte->accessed = true;
+
+  lock_acquire(&syscall_lock);
+
   if (file_read_at (spte->file, frame, spte->read_byte, spte->offset) != (int) spte->read_byte)
   {
+    lock_release(&syscall_lock);
     free_frame (frame);
     return false; 
   }
+  lock_release(&syscall_lock);
+
+
   memset (frame + spte->read_byte, 0, spte->zero_byte);
 
   struct thread *t = thread_current ();
@@ -196,6 +253,7 @@ handle_page_fault_mmap(struct sup_page_table_entry * spte)
       free_frame (frame);
       return false; 
     }
+  pagedir_set_dirty (t->pagedir, frame, false);  
   return success;
 }
 
@@ -203,13 +261,44 @@ struct sup_page_table_entry *
 lookup_page(void *addr)
 {
   struct list_elem *e;
-  for (e = list_begin(&thread_current()->sup_table); e != list_end(&thread_current()->sup_table); e = list_next(e))
+  struct thread* curr = thread_current ();
+  lock_acquire(&curr->sup_lock);
+  for (e = list_begin(&curr->sup_table); e != list_end(&curr->sup_table); e = list_next(e))
     {
       struct sup_page_table_entry *spte = list_entry(e, struct sup_page_table_entry, elem);
       if (spte->user_vaddr == addr)
       {
+        lock_release(&curr->sup_lock);
         return spte;
       }
   }
+  lock_release(&curr->sup_lock);
   return NULL;
 }
+
+/* jjy implement */
+/**
+ * Install a page (specified by the starting address `upage`)
+ * on the supplemental page table. The page is of type ALL_ZERO,
+ * indicates that all the bytes is (lazily) zero.
+ */
+void
+spt_install_new_zeropage (void *upage)
+{
+
+  if (lookup_page(upage) == NULL) {
+    PANIC("Duplicated SUPT entry for zeropage");
+    return ;
+  }
+
+  struct sup_page_table_entry *spte;
+  spte = (struct sup_page_table_entry *) malloc(sizeof(struct sup_page_table_entry));
+
+  spte->user_vaddr = upage;
+  spte->flag = PAGE_ALL_ZERO;
+
+  add_spte_to_table(spte);
+
+  return;
+}
+/* jjy implement */

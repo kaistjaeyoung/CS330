@@ -113,6 +113,14 @@ struct thread
     struct list fd_list;                /* file descripter list */
     int max_fd;
     int return_status; 
+
+
+    /* jjy implement */
+    uint8_t *current_esp;               /* The current value of the user program’s stack pointer.
+                                           A page fault might occur in the kernel, so we might
+                                           need to store esp on transition to kernel mode. (4.3.3) */
+    /* jjy implement */
+
 #endif
     /* Owned by thread.c. */
 #ifdef VM

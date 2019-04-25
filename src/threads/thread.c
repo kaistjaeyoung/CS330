@@ -457,6 +457,7 @@ init_thread (struct thread *t, const char *name, int priority)
   #ifdef VM
     frame_init();
     t->mapid = 0;
+    list_init(&(t->mmap_list));
   #endif
 }
 

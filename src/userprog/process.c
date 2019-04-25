@@ -603,11 +603,8 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
   bool success = pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable);
-  // if (success) 
-  //   allocate_page(upage, PAGE_FILE);
   return success;
   // return (pagedir_get_page (t->pagedir, upage) == NULL
   //         && pagedir_set_page (t->pagedir, upage, kpage, writable));

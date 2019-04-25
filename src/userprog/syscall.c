@@ -23,6 +23,22 @@ struct file
     off_t pos;                  /* Current position. */
     bool deny_write;            /* Has file_deny_write() been called? */
   };
+static struct fd
+{
+  int fd_value;
+  struct list_elem fd_elem;
+  struct file * file;
+};
+
+static struct mmap_list_entry
+{
+  mapid_t mapid;
+  uint32_t* user_vaddr;
+  struct file * file;
+  int offset;
+  struct list_elem mmap_elem;   
+};
+
 
 void halt (void);
 void exit (int status);
@@ -41,25 +57,7 @@ void close (int fd);
 struct fd * find_fd(struct thread * curr, int fd);
 mapid_t mmap (int fd, void *addr);
 void munmap (mapid_t mapping);
-
-static struct lock syscall_lock;
-
-static struct fd
-{
-  int fd_value;
-  struct list_elem fd_elem;
-  struct file * file;
-};
-
-static struct mmap_list_entry
-{
-  mapid_t mapid;
-  uint32_t* user_vaddr;
-  struct file * file;
-  int offset;
-  struct list_elem elem;   
-};
-
+struct mmap_list_entry * find_mmap(mapid_t mapping);
 
 void
 syscall_init (void) 
@@ -75,6 +73,10 @@ syscall_handler (struct intr_frame *f)
   int fd = *(int *)(f->esp + 4);
   int buffer = *(int *)(f->esp + 8);
   int size = *(int *)(f->esp + 12);
+
+  /* jjy implemented */
+  thread_current()->current_esp = f->esp;
+  /* jjy implemented */
 
   is_valid_addr(f->esp + 4);
   is_valid_addr(f->esp + 8);   
@@ -355,6 +357,9 @@ mapid_t mmap (int fd, void *addr)
 
         int offset = 0;
 
+
+        void * initaddr = addr;
+
         while (read_bytes > 0)
         {
           uint32_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
@@ -369,6 +374,7 @@ mapid_t mmap (int fd, void *addr)
           spte->offset = offset;
           spte->accessed = false;
 
+
           add_spte_to_table(spte);
           read_bytes -= page_read_bytes;
           addr += PGSIZE;
@@ -379,11 +385,11 @@ mapid_t mmap (int fd, void *addr)
 
         struct mmap_list_entry * mmap = malloc(sizeof(struct mmap_list_entry));
         mmap->mapid = new_mapid;
-        mmap->user_vaddr = addr;
+        mmap->user_vaddr = initaddr;
         mmap->file = reopened_file;
         mmap->offset = offset;
 
-        list_push_back(&curr->mmap_list, &mmap->elem);
+        list_push_back(&curr->mmap_list, &mmap->mmap_elem);
 
         curr -> mapid = new_mapid;
         return (mapid_t)curr->mapid;
@@ -395,32 +401,42 @@ mapid_t mmap (int fd, void *addr)
 void munmap (mapid_t mapping)
 {
   // 1. FIND The appropriate mapped structure in the mmap list :) 
+  // struct thread * curr = thread_current ();
+  struct mmap_list_entry * mmap = find_mmap(mapping);
+  if (mmap == NULL) 
+    return NULL; // What should I do in here..?
+
+  int read_bytes = file_length(mmap->file);
+
+  size_t offset = 0;
+
+  while(read_bytes > 0)
+  {
+    // delete every Mapping spte from table
+    void *uaddr = mmap->user_vaddr + offset;
+
+    int bytes = (offset + PGSIZE < read_bytes ? PGSIZE : read_bytes - offset);
+    remove_spte_from_table(uaddr, bytes, offset);
+    offset += PGSIZE;
+    read_bytes -= bytes;
+  }
+
+
+  list_remove(&mmap->mmap_elem);
+  lock_acquire(&syscall_lock);
+  file_close(mmap->file);
+  lock_release(&syscall_lock);
+  free(mmap);
+}
+
+struct mmap_list_entry * find_mmap(mapid_t mapping)
+{
   struct thread * curr = thread_current ();
   struct list_elem * e;
   for (e = list_begin (&curr->mmap_list); e != list_end (&curr->mmap_list); e = list_next (e))
-    {
-      if (list_entry(e, struct mmap_list_entry, elem)->mapid == mapping) {
-
-          struct mmap_list_entry * mmap = list_entry(e, struct mmap_list_entry, elem);
-
-          int read_bytes = file_length(mmap->file);
-
-          size_t offset = 0;
-
-          while(read_bytes > 0)
-          {
-            // delete every Mapping spte from table
-            void *uaddr = mmap->addr + offset;
-            int bytes = (offset + PGSIZE < read_bytes ? PGSIZE : read_bytes - offset);
-            remove_spte_from_table(uaddr, bytes, offset);
-            offset += PGSIZE
-            read_bytes -= bytes;
-          }
-
-          // Remove and free mmap structure 
-          list_remove(& mmap->elem);
-          file_close(mmap->file);
-          free(mmap);
-      }
-    }
+  {
+      if (list_entry(e, struct mmap_list_entry, mmap_elem)->mapid == mapping)
+        return list_entry(e, struct mmap_list_entry, mmap_elem);
+  }
+  return NULL;
 }
