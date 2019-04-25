@@ -100,7 +100,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     // 없으면 ㄴㄴ...
     struct sup_page_table_entry * spte = lookup_page(upage);
     if (spte == NULL) {
-        printf("in first\n");
+        // printf("in first\n");
         exit(-1);
     }
 
@@ -108,7 +108,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     // frame_allocate로 할당하기 
     void *frame = allocate_frame(PAL_USER);
     if (frame == NULL) {
-        printf("in second\n");
+        // printf("in second\n");
         exit(-1);
     }
 
@@ -124,16 +124,9 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
         memset (frame, 0, PGSIZE);
         break;
       case PAGE_MMAP:
-        if (!handle_page_fault_mmap (
-          spte->user_vaddr,
-          frame,
-          spte->read_byte,
-          spte->zero_byte,
-          spte->file,
-          spte->writable,
-          spte->offset
-        ))
-          printf("not working!!!!!!!\n");
+        if (!handle_page_fault_mmap ( spte, frame ))
+          exit(-1);
+          // printf("not working!!!!!!!\n");
         // memset (frame, 0, PGSIZE);
 
         break;
@@ -155,29 +148,21 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
 }
 
 bool
-handle_page_fault_mmap(
-  void *upage,
-  void*kpage,
-  size_t read_byte,
-  size_t zero_byte,
-  struct file* file,
-  bool writable,
-  int offset
-  )
+handle_page_fault_mmap(struct sup_page_table_entry * spte, void*frame )
 {
-  printf("come to this????\n");
-  printf("read_Byte is? %d\n", read_byte);
-  int i = file_read_at (file, kpage, read_byte, offset);
-  printf("file read bye is? %d\n", i);
-  printf("received offset is? %d\n", offset);
+  // printf("come to this????\n");
+  // printf("read_Byte is? %d\n", spte->read_byte);
+  int i = file_read_at (spte->file, frame, spte->read_byte, spte->offset);
+  // printf("file read bye is? %d\n", i);
+  // printf("received offset is? %d\n", spte->offset);
 
-  if (file_read_at (file, kpage, read_byte, offset) != (int) read_byte)
+  if (file_read_at (spte->file, frame, spte->read_byte, spte->offset) != (int) spte->read_byte)
   {
-    printf("wrong here/????!\n");
-    free_frame (kpage);
+    // printf("wrong here/????!\n");
+    free_frame (frame);
     return false; 
   }
-  memset (kpage + read_byte, 0, zero_byte);
+  memset (frame + spte->read_byte, 0, spte->zero_byte);
 
   /* Add the page to the process's address space. */
   struct thread *t = thread_current ();
@@ -185,13 +170,13 @@ handle_page_fault_mmap(
   /* Verify that there's not already a page at that virtual
     address, then map our page there. */
   // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
-  printf("wrong here?1\n");
-  bool success = pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable);
-  printf("wrong here?2\n");
+  // printf("wrong here?1\n");
+  bool success = pagedir_get_page (t->pagedir, spte->user_vaddr) == NULL
+          && pagedir_set_page (t->pagedir, spte->user_vaddr, frame, spte->writable);
+  // printf("wrong here?2\n");
   if (!success) 
     {
-      free_frame (kpage);
+      free_frame (frame);
       return false; 
     }
   return success;

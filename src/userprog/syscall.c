@@ -328,9 +328,14 @@ mapid_t mmap (int fd, void *addr)
     {
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
 
-        struct fd* find_fd_struct = list_entry(e, struct fd, fd_elem);
+        struct fd* find_fd = list_entry(e, struct fd, fd_elem);
 
-        int read_bytes = file_length(find_fd_struct->file);
+        struct file* reopened_file = file_reopen(find_fd->file);
+
+        if (reopened_file == NULL) 
+          return -1;
+
+        int read_bytes = file_length(reopened_file);
 
         int offset = 0;
 
@@ -342,7 +347,7 @@ mapid_t mmap (int fd, void *addr)
           spte->user_vaddr = addr;
           spte->read_byte = page_read_bytes;
           spte->zero_byte = page_zero_bytes;
-          spte->file = find_fd_struct->file;
+          spte->file = reopened_file;
           spte->writable = true;
           spte->flag = PAGE_MMAP;
           spte->offset = offset;
