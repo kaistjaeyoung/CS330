@@ -40,6 +40,7 @@ unsigned tell (int fd);
 void close (int fd);
 struct fd * find_fd(struct thread * curr, int fd);
 mapid_t mmap (int fd, void *addr);
+void munmap (mapid_t mapping);
 
 static struct lock syscall_lock;
 
@@ -49,6 +50,16 @@ static struct fd
   struct list_elem fd_elem;
   struct file * file;
 };
+
+static struct mmap_list_entry
+{
+  mapid_t mapid;
+  uint32_t* user_vaddr;
+  struct file * file;
+  int offset;
+  struct list_elem elem;   
+};
+
 
 void
 syscall_init (void) 
@@ -123,8 +134,14 @@ syscall_handler (struct intr_frame *f)
       close((int)fd);
       break;
     case SYS_MMAP:
-      mmap((int)fd, (void *)buffer);
+      lock_acquire(&syscall_lock);  
+      f->eax = mmap((int)fd, (void *)buffer);
+      lock_release(&syscall_lock);  
       break;
+    case SYS_MUNMAP:
+      // lock_acquire(&syscall_lock);  
+      munmap ((mapid_t) fd);
+      // lock_release(&syscall_lock);  
     default:
       break;
   }
@@ -320,10 +337,9 @@ void seek (int fd, unsigned position)
 
 mapid_t mmap (int fd, void *addr)
 {
-  struct thread * curr;
+  struct thread * curr = thread_current ();
   struct list_elem * e;
 
-  curr = thread_current ();
   for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
     {
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
@@ -359,12 +375,52 @@ mapid_t mmap (int fd, void *addr)
           offset += page_read_bytes;
         }
 
-        int new_mapid = thread_current() -> mapid + 1;
-        thread_current() -> mapid = new_mapid;
+        int new_mapid = curr->mapid + 1;
 
+        struct mmap_list_entry * mmap = malloc(sizeof(struct mmap_list_entry));
+        mmap->mapid = new_mapid;
+        mmap->user_vaddr = addr;
+        mmap->file = reopened_file;
+        mmap->offset = offset;
 
-        return new_mapid;
+        list_push_back(&curr->mmap_list, &mmap->elem);
+
+        curr -> mapid = new_mapid;
+        return (mapid_t)curr->mapid;
       }
     }
   return -1;
+}
+
+void munmap (mapid_t mapping)
+{
+  // 1. FIND The appropriate mapped structure in the mmap list :) 
+  struct thread * curr = thread_current ();
+  struct list_elem * e;
+  for (e = list_begin (&curr->mmap_list); e != list_end (&curr->mmap_list); e = list_next (e))
+    {
+      if (list_entry(e, struct mmap_list_entry, elem)->mapid == mapping) {
+
+          struct mmap_list_entry * mmap = list_entry(e, struct mmap_list_entry, elem);
+
+          int read_bytes = file_length(mmap->file);
+
+          size_t offset = 0;
+
+          while(read_bytes > 0)
+          {
+            // delete every Mapping spte from table
+            void *uaddr = mmap->addr + offset;
+            int bytes = (offset + PGSIZE < read_bytes ? PGSIZE : read_bytes - offset);
+            remove_spte_from_table(uaddr, bytes, offset);
+            offset += PGSIZE
+            read_bytes -= bytes;
+          }
+
+          // Remove and free mmap structure 
+          list_remove(& mmap->elem);
+          file_close(mmap->file);
+          free(mmap);
+      }
+    }
 }

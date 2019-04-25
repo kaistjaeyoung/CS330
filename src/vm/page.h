@@ -42,7 +42,8 @@ void page_init (void);
 bool allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_byte, size_t zero_byte, struct file* file, bool writable);
 bool page_fault_handler(void *upage, uint32_t *pagedir);
 struct sup_page_table_entry *lookup_page(void *addr);
-bool handle_page_fault_mmap (struct sup_page_table_entry * spte, void*frame);
+bool handle_page_fault_mmap (struct sup_page_table_entry * spte);
 struct sup_page_table_entry * add_spte_to_table(struct sup_page_table_entry *spte);
+bool remove_spte_from_table(void *upage, size_t byte, size_t offset);
 
 #endif /* vm/page.h */

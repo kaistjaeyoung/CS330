@@ -7,6 +7,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include "filesys/off_t.h"
+#include <syscall-nr.h>
 
 
 
@@ -118,6 +119,7 @@ struct thread
     struct list sup_table;                /* file descripter list */
     struct lock sup_lock;
     int mapid;
+    struct list mmap_list;
 #endif
     unsigned magic;                     /* Detects stack overflow. */    
 };
