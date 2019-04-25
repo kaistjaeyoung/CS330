@@ -173,7 +173,7 @@ page_fault (struct intr_frame *f)
   void* fault_page = (void*) pg_round_down(fault_addr);
 
   if (!not_present) {
-    printf("jjy implementation: !not_present!!");
+    // printf("jjy implementation: !not_present!!");
     if(!user) { // kernel mode
       f->eip = (void *) f->eax;
       f->eax = 0xffffffff;
@@ -203,14 +203,6 @@ page_fault (struct intr_frame *f)
     // printf("Do Stack Growth!\n");
     // spt_install_new_zeropage (fault_page);
   }
-
-  //   // if(! vm_load_page(curr->supt, curr->pagedir, fault_page) )
-  //   //   goto PAGE_FAULT_VIOLATED_ACCESS;
-
-  //   // success
-  //   return;
-
-  // PAGE_FAULT_VIOLATED_ACCESS:
   // #endif
 
   /* jjyp implement */

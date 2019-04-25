@@ -45,7 +45,7 @@ bool allocate_page (void *upage, void*kpage, enum spte_flags flag, size_t read_b
 bool page_fault_handler(void *upage, uint32_t *pagedir);
 struct sup_page_table_entry *lookup_page(void *addr);
 bool handle_page_fault_mmap (struct sup_page_table_entry * spte);
-void add_spte_to_table(struct sup_page_table_entry *spte);
+bool add_spte_to_table(struct sup_page_table_entry *spte);
 bool remove_spte_from_table(void *upage, size_t byte, size_t offset);
 
 /* jjy implement */

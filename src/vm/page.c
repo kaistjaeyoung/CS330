@@ -92,12 +92,15 @@ allocate_page (
     return spte;
 }
 
-void
+bool
 add_spte_to_table(struct sup_page_table_entry *spte)
 {
+  if (lookup_page(spte->user_vaddr)) 
+    return false;
   lock_acquire(&thread_current()->sup_lock);
   list_push_back(&thread_current()->sup_table, &spte->elem);
   lock_release(&thread_current()->sup_lock);
+  return true;
 }
 
 struct sup_page_table_entry *
