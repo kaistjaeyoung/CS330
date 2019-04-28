@@ -94,11 +94,16 @@ allocate_page (
 bool
 add_spte_to_table(struct sup_page_table_entry *spte)
 {
-  if (lookup_page(spte->user_vaddr)) 
+  if (lookup_page(spte->user_vaddr)) {
+    printf("comes to lookup page false\n");
     return false;
+
+  }
+  printf("comes to lookup page before lock\n");
   lock_acquire(&thread_current()->sup_lock);
   list_push_back(&thread_current()->sup_table, &spte->elem);
   lock_release(&thread_current()->sup_lock);
+  printf("comes to lookup page after lock\n");
   return true;
 }
 
@@ -123,7 +128,6 @@ bool remove_spte_from_table(void *upage, size_t byte, size_t offset)
 {
     struct thread* curr = thread_current();
 
-    lock_acquire(&curr->sup_lock);
     struct sup_page_table_entry * spte = find_spte(upage);
 
     if (spte == NULL) {
@@ -153,7 +157,6 @@ bool remove_spte_from_table(void *upage, size_t byte, size_t offset)
     }
 
   list_remove(&spte->elem);
-  lock_release(&curr->sup_lock);
   return true;
 }
 
@@ -242,6 +245,7 @@ handle_page_fault_mmap(struct sup_page_table_entry * spte)
 struct sup_page_table_entry *
 lookup_page(void *addr)
 {
+  printf("comes to lookup page function in\n");
   struct list_elem *e;
   struct thread* curr = thread_current ();
   lock_acquire(&curr->sup_lock);
@@ -253,7 +257,7 @@ lookup_page(void *addr)
         lock_release(&curr->sup_lock);
         return spte;
       }
-  }
+    }
   lock_release(&curr->sup_lock);
   return NULL;
 }
@@ -268,19 +272,18 @@ void
 spt_install_new_zeropage (void *upage)
 {
 
-  if (lookup_page(upage) != NULL) {
-    PANIC("Duplicated SUPT entry for zeropage");
-    return ;
-  }
-
   struct sup_page_table_entry *spte;
   spte = (struct sup_page_table_entry *) malloc(sizeof(struct sup_page_table_entry));
 
   spte->user_vaddr = upage;
   spte->flag = PAGE_ALL_ZERO;
 
-  add_spte_to_table(spte);
-
+  if (! add_spte_to_table(spte) ) {
+    printf("comes to in [if (! add_spte_to_table(spte) ) ]\n");
+    PANIC("Duplicated SUPT entry for zeropage");
+    return ;
+  }
+  printf("success to install_new_zeropage\n");
   return;
 }
 /* jjy implement */
