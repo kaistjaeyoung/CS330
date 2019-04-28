@@ -181,12 +181,13 @@ void exit (int status)
       e = list_begin (&curr->fd_list);
       close (list_entry (e, struct fd, fd_elem)->fd_value);
     }
-  
-  // while (!list_empty(&curr->mmap_list)) {
-  //   struct list_elem *e = list_begin (&curr->mmap_list);
-  //   struct mmap_list_entry *mmap = list_entry(e, struct mmap_list_entry, mmap_elem);
-  //   munmap (mmap->mapid);
-  // }
+
+
+  while (!list_empty(&curr->mmap_list)) {
+    struct list_elem *e = list_begin (&curr->mmap_list);
+    struct mmap_list_entry *mmap = list_entry(e, struct mmap_list_entry, mmap_elem);
+    munmap (mmap->mapid);
+  }
 
   thread_exit();
 }
@@ -430,6 +431,7 @@ void munmap (mapid_t mapping)
 {
   // 1. FIND The appropriate mapped structure in the mmap list :) 
   // struct thread * curr = thread_current ();
+  lock_acquire(&syscall_lock);
   struct mmap_list_entry * mmap = find_mmap(mapping);
   if (mmap == NULL) 
     return NULL; // What should I do in here..?
@@ -451,10 +453,9 @@ void munmap (mapid_t mapping)
 
 
   list_remove(&mmap->mmap_elem);
-  lock_acquire(&syscall_lock);
   file_close(mmap->file);
-  lock_release(&syscall_lock);
   free(mmap);
+  lock_release(&syscall_lock);
 }
 
 struct mmap_list_entry * find_mmap(mapid_t mapping)
