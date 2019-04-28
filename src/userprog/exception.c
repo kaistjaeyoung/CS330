@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
-#include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "vm/page.h"
 
 #define MAX_STACK_SIZE 0x800000
@@ -163,8 +163,8 @@ page_fault (struct intr_frame *f)
 
 
   /* jjyp implement */
-
   #if VM
+
   //   /* Virtual memory handling.
   //   * First, bring in the page to which fault_addr refers. */
 
@@ -172,20 +172,20 @@ page_fault (struct intr_frame *f)
   struct thread *curr = thread_current(); /* Current thread. */
   void* fault_page = (void*) pg_round_down(fault_addr);
 
-  if (!not_present) {
-    // printf("jjy implementation: !not_present!!");
-    if(!user) { // kernel mode
-      f->eip = (void *) f->eax;
-      f->eax = 0xffffffff;
-      return;
-    }
-    printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-    kill (f);
-  }
+  // if (!not_present) {
+  //   // printf("jjy implementation: !not_present!!");
+  //   if(!user) { // kernel mode
+  //     f->eip = (void *) f->eax;
+  //     f->eax = 0xffffffff;
+  //     return;
+  //   }
+  //   printf ("Page fault at %p: %s error %s page in %s context.\n",
+  //         fault_addr,
+  //         not_present ? "not present" : "rights violation",
+  //         write ? "writing" : "reading",
+  //         user ? "user" : "kernel");
+  //   kill (f);
+  // }
 
   //   /* (4.3.3) Obtain the current value of the user program's stack pointer.
   //   * If the page fault is from user mode, we can obtain from intr_frame `f`,
@@ -200,8 +200,8 @@ page_fault (struct intr_frame *f)
   if (on_stack_frame && is_stack_addr) {
     // OK. Do     not die.
     // we need to add new page entry in the SUPT. A promising choice is a zero-page.
-    // printf("Do Stack Growth!\n");
-    // spt_install_new_zeropage (fault_page);
+    printf("Do Stack Growth!\n");
+    spt_install_new_zeropage (fault_page);
   }
   // #endif
 

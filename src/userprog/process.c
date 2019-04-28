@@ -556,8 +556,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //     free_frame (kpage);
       //     return false; 
       //   }
+
       allocate_page(upage, kpage, PAGE_FILE, page_read_bytes, page_zero_bytes, file, writable);
-      //  저 위에 있는 걸 한번에 묶어서 해 줄 방법 없니? install page 가 성공하면 .. 흠 ..
 
       /* Advance. */
       read_bytes -= page_read_bytes;

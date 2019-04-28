@@ -181,6 +181,12 @@ void exit (int status)
       e = list_begin (&curr->fd_list);
       close (list_entry (e, struct fd, fd_elem)->fd_value);
     }
+  
+  // while (!list_empty(&curr->mmap_list)) {
+  //   struct list_elem *e = list_begin (&curr->mmap_list);
+  //   struct mmap_list_entry *mmap = list_entry(e, struct mmap_list_entry, mmap_elem);
+  //   munmap (mmap->mapid);
+  // }
 
   thread_exit();
 }
@@ -342,21 +348,32 @@ mapid_t mmap (int fd, void *addr)
   struct thread * curr = thread_current ();
   struct list_elem * e;
 
+  for (e = list_begin (&curr->sup_table); e != list_end (&curr->sup_table); e = list_next (e))
+  {
+    if (list_entry(e, struct sup_page_table_entry, elem)->user_vaddr == addr) {
+      return -1;
+    }
+  }
+
   for (e = list_begin (&curr->fd_list); e != list_end (&curr->fd_list); e = list_next (e))
     {
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
 
         struct fd* find_fd = list_entry(e, struct fd, fd_elem);
 
-        struct file* reopened_file = file_reopen(find_fd->file);
-
-        if (reopened_file == NULL) 
+        if (!is_user_vaddr(addr) || addr < USER_VADDR_BOTTOM || ((uint32_t) addr % PGSIZE) != 0) {
           return -1;
+        }
+
+        struct file* reopened_file = file_reopen(find_fd->file);
 
         int read_bytes = file_length(reopened_file);
 
-        int offset = 0;
+        if (reopened_file == NULL || read_bytes == 0) {
+          return -1;
+        }
 
+        int offset = 0;
 
         void * initaddr = addr;
 
@@ -365,6 +382,11 @@ mapid_t mmap (int fd, void *addr)
           uint32_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
           uint32_t page_zero_bytes = PGSIZE - page_read_bytes;
           struct sup_page_table_entry * spte = malloc(sizeof(struct sup_page_table_entry));
+
+          if (!spte) {
+            return -1;
+          }
+
           spte->user_vaddr = addr;
           spte->read_byte = page_read_bytes;
           spte->zero_byte = page_zero_bytes;
@@ -374,8 +396,9 @@ mapid_t mmap (int fd, void *addr)
           spte->offset = offset;
           spte->accessed = false;
 
+          if (!add_spte_to_table(spte))
+            return -1;
 
-          add_spte_to_table(spte);
           read_bytes -= page_read_bytes;
           addr += PGSIZE;
           offset += page_read_bytes;
@@ -384,6 +407,11 @@ mapid_t mmap (int fd, void *addr)
         int new_mapid = curr->mapid + 1;
 
         struct mmap_list_entry * mmap = malloc(sizeof(struct mmap_list_entry));
+
+        if (!mmap) {
+          return -1;
+        }
+
         mmap->mapid = new_mapid;
         mmap->user_vaddr = initaddr;
         mmap->file = reopened_file;

@@ -16,13 +16,15 @@ enum spte_flags
     PAGE_FILE = 001,          
     PAGE_SWAP = 002,           
     PAGE_ALL_ZERO = 003,
-	PAGE_MMAP = 004,           
+		PAGE_MMAP = 004,     
+		PAGE_LOADED = 005,      
   };
 
 
 struct sup_page_table_entry 
 {
 	uint32_t* user_vaddr;
+	uint32_t* frame;
 	uint64_t access_time;
 	size_t read_byte;
 	size_t zero_byte;
