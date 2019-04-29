@@ -264,7 +264,9 @@ int open (const char *file)
 {
   if (file == NULL) exit(-1);
   struct file * openfile = filesys_open(file);
-  if (openfile == NULL) return -1;
+  if (openfile == NULL) {
+    return -1;
+  }
 
   struct fd  * new_fd = (struct fd*) malloc(sizeof(struct fd));
   new_fd->file = openfile;
@@ -275,7 +277,7 @@ int open (const char *file)
   }
   
   if (!list_empty(&thread_current ()->fd_list)) {
-    new_fd->fd_value = thread_current () -> max_fd++;
+    new_fd->fd_value = list_entry(list_back(&thread_current ()->fd_list), struct fd, fd_elem)->fd_value + 1;
     list_push_back(&thread_current ()->fd_list, &new_fd->fd_elem);
     return new_fd->fd_value;
   } else {
@@ -397,8 +399,11 @@ mapid_t mmap (int fd, void *addr)
           spte->offset = offset;
           spte->accessed = false;
 
-          if (!add_spte_to_table(spte))
+          if (!add_spte_to_table(spte)) 
+          {
+            free(spte);
             return -1;
+          }
 
           read_bytes -= page_read_bytes;
           addr += PGSIZE;
