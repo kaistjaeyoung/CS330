@@ -168,10 +168,10 @@ page_fault (struct intr_frame *f)
   struct thread *curr = thread_current(); /* Current thread. */
   void* fault_page = (void*) pg_round_down(fault_addr);
 
-  if (!not_present) {
-    printf("comes to !not_present!\n");
-    goto PAGE_FAULT_VIOLATED_ACCESS;
-  }
+  // if (!not_present) {
+  //   printf("comes to !not_present!\n");
+  //   goto PAGE_FAULT_VIOLATED_ACCESS;
+  // }
 
   void* esp = user ? f->esp : curr->current_esp;
 
@@ -180,18 +180,17 @@ page_fault (struct intr_frame *f)
   on_stack_frame = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
   is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
   if (on_stack_frame && is_stack_addr) {
-    printf("coomes to spt_install_new_zeropage\n");
     spt_install_new_zeropage (fault_page);
-    printf('after spt_install_new_zeropage\n');
+    // printf('after spt_install_new_zeropage\n');
   }
-  printf('comes to middle\n');
+  // printf('comes to middle\n');
   if (!page_fault_handler(fault_page, curr->pagedir)) {
-    printf('comes to curr->pagedir\n');
-    printf("%" PRIu32 "\n",curr->pagedir);
+    // printf('comes to curr->pagedir\n');
+    // printf("%" PRIu32 "\n",curr->pagedir);
     goto PAGE_FAULT_VIOLATED_ACCESS;
   }
 
-  printf('pass the !page_fault_handler\n');
+  // printf('pass the !page_fault_handler\n');
 
   return;
   #endif

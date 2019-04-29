@@ -350,6 +350,16 @@ mapid_t mmap (int fd, void *addr)
 {
   struct thread * curr = thread_current ();
   struct list_elem * e;
+  if (fd <= 1) return -1; 
+
+
+  bool is_stack_addr;
+  is_stack_addr = (PHYS_BASE - 0x800000 <= addr && addr < PHYS_BASE);
+
+  if (!is_user_vaddr(addr) || addr < USER_VADDR_BOTTOM ||  pg_ofs(addr) != 0 || is_stack_addr) {
+    return -1;
+  }
+
 
   for (e = list_begin (&curr->sup_table); e != list_end (&curr->sup_table); e = list_next (e))
   {
@@ -363,10 +373,6 @@ mapid_t mmap (int fd, void *addr)
       if (list_entry(e, struct fd, fd_elem)->fd_value == fd) {
 
         struct fd* find_fd = list_entry(e, struct fd, fd_elem);
-
-        if (!is_user_vaddr(addr) || addr < USER_VADDR_BOTTOM || ((uint32_t) addr % PGSIZE) != 0) {
-          return -1;
-        }
 
         struct file* reopened_file = file_reopen(find_fd->file);
 
