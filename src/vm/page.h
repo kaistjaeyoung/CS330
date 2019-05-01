@@ -16,8 +16,8 @@ enum spte_flags
     PAGE_FILE = 001,          
     PAGE_SWAP = 002,           
     PAGE_ALL_ZERO = 003,
-		PAGE_MMAP = 004,     
-		PAGE_LOADED = 005,      
+	PAGE_MMAP = 004,     
+	PAGE_LOADED = 005,      
   };
 
 
@@ -38,6 +38,8 @@ struct sup_page_table_entry
 	bool munmmaped;
 
 	enum spte_flags flag;
+
+	int swap_index;
 
 	struct list_elem elem;              /* List element. */
 };

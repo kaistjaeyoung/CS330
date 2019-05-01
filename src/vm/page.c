@@ -177,22 +177,27 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     switch(spte -> flag)
     {
       case PAGE_FILE:
-        if (!handle_page_fault_mmap (spte))
+        if (!handle_page_fault_mmap (spte)) {
           exit(-1);
+        }
         loaded = true;
         break;
       case PAGE_SWAP:
+        printf("come here page_swap : 0x%x\n", upage);
+        // loaded = true;
         break;  
       case PAGE_ALL_ZERO:
-        frame = allocate_frame(PAL_USER);
+        frame = allocate_frame(PAL_USER, upage);
         if (frame == NULL) {
             exit(-1);
         }
         memset (frame, 0, PGSIZE);
         break;
       case PAGE_MMAP:
-        if (!handle_page_fault_mmap (spte))
+        if (!handle_page_fault_mmap (spte)) {
+          printf("come here page_file? why?? x%0x\n", upage);
           exit(-1);
+        }
         loaded = true;
         break;
       case PAGE_LOADED:
@@ -208,7 +213,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
 bool
 handle_page_fault_mmap(struct sup_page_table_entry * spte)
 {
-  void *frame = allocate_frame(PAL_USER);
+  void *frame = allocate_frame(PAL_USER, spte->user_vaddr);
   if (frame == NULL)
       return false;
 

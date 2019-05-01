@@ -1,4 +1,6 @@
 #include "vm/frame.h"
+#include "vm/swap.h"
+#include "vm/page.h"
 #include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
@@ -33,7 +35,7 @@ allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ?
 
  */
 void *
-allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? (originally *addr)
+allocate_frame (enum palloc_flags flags, void* upage) // addr는 뭘까 ? 뀨잉 ? (originally *addr)
 {
     // 1. 새로 프레임을 할당하고 
     // 2. 프레임 테이블에 집어넣는다. 
@@ -43,20 +45,36 @@ allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? (originall
     // allocate physical memory 
     addr = palloc_get_page(flags);
 
+    if (addr == NULL) 
+    {
+      struct frame_table_entry *evicted_fte = choose_evict_frame();
+      ASSERT(evicted_fte->frame != NULL);
+      size_t swap_index = swap_out(evicted_fte->frame);
+      ASSERT( swap_index != NULL || swap_index == 0);
+      struct sup_page_table_entry * spte = lookup_page(evicted_fte->upage);
+      spte->flag = PAGE_SWAP;
+      spte->swap_index = swap_index;
+      pagedir_clear_page(evicted_fte->owner->pagedir, evicted_fte->upage);
+      lock_release(&frame_lock);
+      free_frame(evicted_fte->frame);
+      lock_acquire(&frame_lock);
+      addr = palloc_get_page (PAL_USER| flags);
+      ASSERT(addr != NULL);
+    }
+
+
     // make fte 
     struct frame_table_entry * fte = malloc(sizeof(struct frame_table_entry));
     fte -> frame = addr;
     fte -> owner = thread_current ();
+    fte -> upage = upage;
 
     // push fte to the list
     list_push_back(&frame_table, &fte->elem);
 
     lock_release(&frame_lock);
 
-    if (addr == NULL)
-      return NULL;
-    else
-      return addr;
+    return addr;
 }
 
 void *
@@ -82,4 +100,26 @@ free_frame(void * frame)
   palloc_free_page(frame);
 }
 
+void *
+choose_evict_frame()
+{
+  struct thread * curr = thread_current ();
+  struct list_elem *e = list_begin (&frame_table);
+  while (true) {
+    struct frame_table_entry *fte = list_entry(e, struct frame_table_entry, elem);
+    if (e == list_end(&frame_table) ) {
+      e= list_begin (&frame_table);
+    } else {
+      e = list_next(e);
+    }
 
+    if (pagedir_is_accessed(curr->pagedir, fte->upage)) {
+      pagedir_set_accessed(curr->pagedir, fte->upage, false);
+      continue;
+    }
+  
+    ASSERT(fte -> frame != NULL);
+    return fte;
+  }
+  PANIC("should not reached here!\n");
+}
