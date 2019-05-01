@@ -1,8 +1,8 @@
 #include "vm/swap.h"
 #include "devices/disk.h"
+#include "threads/vaddr.h"
 #include "threads/synch.h"
 #include <bitmap.h>
-
 
 /* The swap device */
 static struct disk *swap_device;
@@ -13,13 +13,25 @@ static struct bitmap *swap_table;
 /* Protects swap_table */
 static struct lock swap_lock;
 
+
+static size_t swap_size;
+
+static const size_t SECTOR_NUMBER = PGSIZE / DISK_SECTOR_SIZE;
+
 /* 
  * Initialize swap_device, swap_table, and swap_lock.
  */
 void 
 swap_init (void)
 {
-
+  swap_device = disk_get (1, 1);
+  if (swap_device == NULL) {
+      PANIC("Should not reached here -- swap.c swap_init()");
+  } 
+  swap_size = disk_size(swap_device) / SECTOR_NUMBER;
+  swap_table = bitmap_create(swap_size);
+  bitmap_set_all(swap_table, true);
+  lock_init(&swap_lock);
 }
 
 /*
@@ -35,10 +47,15 @@ swap_init (void)
  * of the disk into the frame. 
  */ 
 bool 
-swap_in (void *addr)
+swap_in (void *addr, int index)
 {
+  if (!swap_table || !swap_device) {
+        PANIC("should be initialized before swap");
+  }
 
-
+  ASSERT(bitmap_test(swap_table, index) == false)
+  bitmap_set(swap_table, index, true);
+  read_from_disk(addr, index);
 }
 
 /* 
@@ -56,10 +73,17 @@ swap_in (void *addr)
  * of in-use and free swap slots.
  */
 bool
-swap_out (void)
+swap_out (void *frame)
 {
-
-
+    if (!swap_table || !swap_device) {
+        PANIC("should be initialized before swap");
+    }
+    ASSERT (frame != NULL);
+    size_t swap_index = bitmap_scan (swap_table, 0, 1, true);
+    write_to_disk(frame, swap_index);
+    bitmap_set(swap_table, swap_index, false);
+    ASSERT(swap_index != BITMAP_ERROR);
+    return swap_index;
 }
 
 /* 
@@ -68,14 +92,32 @@ swap_out (void)
  */
 void read_from_disk (uint8_t *frame, int index)
 {
-
-
+  lock_acquire(&swap_lock);
+  int i;
+  for (i = 0; i < SECTOR_NUMBER; ++ i) {
+      disk_read (
+          swap_device,
+          index * SECTOR_NUMBER + i,
+          frame + (DISK_SECTOR_SIZE * i)
+          );
+  };
+  lock_release(&swap_lock);
+  return;
 }
 
 /* Write data to swap device from frame */
 void write_to_disk (uint8_t *frame, int index)
 {
-
-
+    lock_acquire(&swap_lock);
+    int i;
+    for (i = 0; i < SECTOR_NUMBER; ++ i) {
+        disk_write (
+            swap_device,
+            index * SECTOR_NUMBER + i,
+            frame + (DISK_SECTOR_SIZE * i)
+            );
+    };
+    lock_release(&swap_lock);
+    return;
 }
 
