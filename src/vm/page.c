@@ -95,15 +95,15 @@ bool
 add_spte_to_table(struct sup_page_table_entry *spte)
 {
   if (lookup_page(spte->user_vaddr)) {
-    printf("comes to lookup page false\n");
+    // printf("comes to lookup page false\n");
     return false;
 
   }
-  printf("comes to lookup page before lock\n");
+  // printf("comes to lookup page before lock\n");
   lock_acquire(&thread_current()->sup_lock);
   list_push_back(&thread_current()->sup_table, &spte->elem);
   lock_release(&thread_current()->sup_lock);
-  printf("comes to lookup page after lock\n");
+  // printf("comes to lookup page after lock\n");
   return true;
 }
 
@@ -245,7 +245,6 @@ handle_page_fault_mmap(struct sup_page_table_entry * spte)
 struct sup_page_table_entry *
 lookup_page(void *addr)
 {
-  printf("comes to lookup page function in\n");
   struct list_elem *e;
   struct thread* curr = thread_current ();
   lock_acquire(&curr->sup_lock);
