@@ -182,12 +182,10 @@ page_fault (struct intr_frame *f)
   if (on_stack_frame && is_stack_addr) {
     spt_install_new_zeropage (fault_page);
     // printf('after spt_install_new_zeropage\n');
-  }
-  // printf('comes to middle\n');
-  if (!page_fault_handler(fault_page, curr->pagedir)) {
+  } else if (!page_fault_handler(fault_page, curr->pagedir)) {
     // printf('comes to curr->pagedir\n');
     // printf("%" PRIu32 "\n",curr->pagedir);
-    goto PAGE_FAULT_VIOLATED_ACCESS;
+    exit(-1);
   }
 
   // printf('pass the !page_fault_handler\n');
