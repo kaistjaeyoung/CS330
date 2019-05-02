@@ -28,16 +28,10 @@ frame_init (void) // Frame table init
 
 }
 
-
-/* 
- * Make a new frame table entry for addr.
-allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? 
-
- */
-void *
-allocate_frame (enum palloc_flags flags, void* upage) // addr는 뭘까 ? 뀨잉 ? (originally *addr)
+struct frame_table_entry*
+allocate_fte(enum palloc_flags flags, void* upage)
 {
-    // 1. 새로 프레임을 할당하고 
+  // 1. 새로 프레임을 할당하고 
     // 2. 프레임 테이블에 집어넣는다. 
     // addr = palloc_get_page(___? );
     lock_acquire(&frame_lock);
@@ -68,13 +62,66 @@ allocate_frame (enum palloc_flags flags, void* upage) // addr는 뭘까 ? 뀨잉
     fte -> frame = addr;
     fte -> owner = thread_current ();
     fte -> upage = upage;
+    fte -> locked = true;
 
     // push fte to the list
     list_push_back(&frame_table, &fte->elem);
 
     lock_release(&frame_lock);
 
-    return addr;
+    return fte;
+}
+
+
+/* 
+ * Make a new frame table entry for addr.
+allocate_frame (enum palloc_flags flags) // addr는 뭘까 ? 뀨잉 ? 
+
+ */
+void *
+allocate_frame (enum palloc_flags flags, void* upage) // addr는 뭘까 ? 뀨잉 ? (originally *addr)
+{
+    return allocate_fte(flags, upage)->frame;
+    // 1. 새로 프레임을 할당하고 
+    // 2. 프레임 테이블에 집어넣는다. 
+    // addr = palloc_get_page(___? );
+    // lock_acquire(&frame_lock);
+    // uint32_t *addr;
+    // // allocate physical memory 
+    // addr = palloc_get_page(flags);
+
+    // if (addr == NULL) 
+    // {
+    //   struct frame_table_entry *evicted_fte = choose_evict_frame();
+    //   ASSERT(evicted_fte->frame != NULL);
+    //   size_t swap_index = swap_out(evicted_fte->frame);
+    //   ASSERT( swap_index != NULL || swap_index == 0);
+    //   printf("allocated swap index is ? %d\n", swap_index);
+    //   struct sup_page_table_entry * spte = lookup_page(evicted_fte->upage);
+    //   spte->flag = PAGE_SWAP;
+    //   spte->swap_index = swap_index;
+    //   pagedir_clear_page(evicted_fte->owner->pagedir, evicted_fte->upage);
+    //   lock_release(&frame_lock);
+    //   free_frame(evicted_fte->frame);
+    //   lock_acquire(&frame_lock);
+    //   addr = palloc_get_page (PAL_USER| flags);
+    //   ASSERT(addr != NULL);
+    // }
+
+
+    // // make fte 
+    // struct frame_table_entry * fte = malloc(sizeof(struct frame_table_entry));
+    // fte -> frame = addr;
+    // fte -> owner = thread_current ();
+    // fte -> upage = upage;
+    // fte -> locked = true;
+
+    // // push fte to the list
+    // list_push_back(&frame_table, &fte->elem);
+
+    // lock_release(&frame_lock);
+
+    // return addr;
 }
 
 void *
@@ -105,6 +152,7 @@ choose_evict_frame()
 {
   struct thread * curr = thread_current ();
   struct list_elem *e = list_begin (&frame_table);
+  ASSERT(!list_empty(&frame_table));
   while (true) {
     struct frame_table_entry *fte = list_entry(e, struct frame_table_entry, elem);
     if (e == list_end(&frame_table) ) {
@@ -113,12 +161,21 @@ choose_evict_frame()
       e = list_next(e);
     }
 
+    if (fte->locked) continue;
+
     if (pagedir_is_accessed(curr->pagedir, fte->upage)) {
       pagedir_set_accessed(curr->pagedir, fte->upage, false);
       continue;
     }
+
+    if (fte -> frame == NULL)
+    {
+      // printf("why null? 0x%x", fte->upage);
+      continue;
+    }
+
   
-    ASSERT(fte -> frame != NULL);
+    // ASSERT(fte -> frame != NULL);
     return fte;
   }
   PANIC("should not reached here!\n");

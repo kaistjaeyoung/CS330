@@ -7,7 +7,7 @@
 
 void swap_init (void);
 bool swap_in (void *addr, int index);
-bool swap_out (void *frame);
+size_t swap_out (void *frame);
 void read_from_disk (uint8_t *frame, int index);
 void write_to_disk (uint8_t *frame, int index);
 

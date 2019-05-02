@@ -11,10 +11,11 @@ struct frame_table_entry
 	struct thread* owner;
 	struct sup_page_table_entry* spte;
 	struct list_elem elem;              /* List element. */
+	bool locked;
 };
 
 void frame_init (void);
-// void * allocate_frame (enum palloc_flags flags);
+struct frame_table_entry* allocate_fte(enum palloc_flags flags, void* upage);
 void * allocate_frame (enum palloc_flags flags, void* upage);
 void * free_frame(void * frame);
 void * choose_evict_frame();

@@ -184,6 +184,7 @@ page_fault (struct intr_frame *f)
     // printf('after spt_install_new_zeropage\n');
   } else if (!page_fault_handler(fault_page, curr->pagedir)) {
     // printf("%" PRIu32 "\n",curr->pagedir);
+    printf("hihih test\n");
     exit(-1);
   }
 

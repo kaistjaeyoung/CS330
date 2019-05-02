@@ -183,8 +183,11 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
         loaded = true;
         break;
       case PAGE_SWAP:
-        printf("come here page_swap : 0x%x\n", upage);
-        // loaded = true;
+        if (!handle_page_fault_swap (spte)) {
+          // printf("come here page_swap? why?? x%0x\n", upage);
+          exit(-1);
+        }
+        loaded = true;
         break;  
       case PAGE_ALL_ZERO:
         frame = allocate_frame(PAL_USER, upage);
@@ -208,6 +211,41 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     }
 
     return loaded;
+}
+
+bool
+handle_page_fault_swap(struct sup_page_table_entry * spte)
+{
+  // 1. Allocate new frame
+  struct frame_table_entry* fte = allocate_fte(PAL_USER, spte->user_vaddr);
+  void *frame = fte->frame;
+  if (frame == NULL) return false;
+
+  // // // 2. install page.
+  struct thread *t = thread_current ();
+  bool success = pagedir_get_page (t->pagedir, spte->user_vaddr) == NULL
+          && pagedir_set_page (t->pagedir, spte->user_vaddr, frame, spte->writable);
+  if (!success) 
+    {
+      free_frame (frame);
+      return false; 
+    }
+
+  ASSERT(spte->swap_index != NULL || spte->swap_index == 0);
+
+  // // 3.swap_in evicted frame from the disk. (write data from disk to the frame)
+  swap_in(frame, spte->swap_index);
+
+  lock_acquire(&t->sup_lock);
+  spte->frame = frame;
+  spte->flag = PAGE_LOADED;
+  spte->accessed = false;
+  lock_release(&t->sup_lock);
+
+  fte->locked = false;
+
+  pagedir_set_dirty (t->pagedir, frame, false);
+  return true;
 }
 
 bool

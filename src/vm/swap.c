@@ -30,6 +30,7 @@ swap_init (void)
   } 
   swap_size = disk_size(swap_device) / SECTOR_NUMBER;
   swap_table = bitmap_create(swap_size);
+  ASSERT(swap_table != NULL);
   bitmap_set_all(swap_table, true);
   lock_init(&swap_lock);
 }
@@ -53,7 +54,7 @@ swap_in (void *addr, int index)
         PANIC("should be initialized before swap");
   }
 
-  ASSERT(bitmap_test(swap_table, index) == false)
+  ASSERT(bitmap_test(swap_table, index) == false);
   bitmap_set(swap_table, index, true);
   read_from_disk(addr, index);
 }
@@ -72,17 +73,19 @@ swap_in (void *addr, int index)
  * 4. Find a free block to write you data. Use swap table to get track
  * of in-use and free swap slots.
  */
-bool
+size_t
 swap_out (void *frame)
 {
     if (!swap_table || !swap_device) {
         PANIC("should be initialized before swap");
     }
     ASSERT (frame != NULL);
-    size_t swap_index = bitmap_scan (swap_table, 0, 1, true);
+    lock_acquire(&swap_lock);
+    size_t swap_index = bitmap_scan_and_flip (swap_table, 0, 1, true);
     write_to_disk(frame, swap_index);
-    bitmap_set(swap_table, swap_index, false);
+    // bitmap_set(swap_table, swap_index, false);
     ASSERT(swap_index != BITMAP_ERROR);
+    lock_release(&swap_lock);
     return swap_index;
 }
 
@@ -108,7 +111,6 @@ void read_from_disk (uint8_t *frame, int index)
 /* Write data to swap device from frame */
 void write_to_disk (uint8_t *frame, int index)
 {
-    lock_acquire(&swap_lock);
     int i;
     for (i = 0; i < SECTOR_NUMBER; ++ i) {
         disk_write (
@@ -117,7 +119,6 @@ void write_to_disk (uint8_t *frame, int index)
             frame + (DISK_SECTOR_SIZE * i)
             );
     };
-    lock_release(&swap_lock);
     return;
 }
 
