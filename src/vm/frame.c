@@ -150,7 +150,6 @@ free_frame(void * frame)
 void *
 choose_evict_frame()
 {
-  struct thread * curr = thread_current ();
   struct list_elem *e = list_begin (&frame_table);
   ASSERT(!list_empty(&frame_table));
   while (true) {
@@ -161,21 +160,18 @@ choose_evict_frame()
       e = list_next(e);
     }
 
+    struct thread * curr = fte->owner;
+
     if (fte->locked) continue;
+
+    if (fte -> frame == NULL) continue; // I dont know why but some NULL frame inserted here..?
 
     if (pagedir_is_accessed(curr->pagedir, fte->upage)) {
       pagedir_set_accessed(curr->pagedir, fte->upage, false);
       continue;
     }
 
-    if (fte -> frame == NULL)
-    {
-      // printf("why null? 0x%x", fte->upage);
-      continue;
-    }
-
-  
-    // ASSERT(fte -> frame != NULL);
+    ASSERT(fte -> frame != NULL);
     return fte;
   }
   PANIC("should not reached here!\n");
