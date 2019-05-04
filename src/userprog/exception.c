@@ -181,10 +181,8 @@ page_fault (struct intr_frame *f)
   is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
   if (on_stack_frame && is_stack_addr) {
     spt_install_new_zeropage (fault_page);
-    // printf('after spt_install_new_zeropage\n');
   } else if (!page_fault_handler(fault_page, curr->pagedir)) {
     // printf("%" PRIu32 "\n",curr->pagedir);
-    printf("hihih test\n");
     exit(-1);
   }
 

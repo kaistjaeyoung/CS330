@@ -319,13 +319,25 @@ spt_install_new_zeropage (void *upage)
 
   spte->user_vaddr = upage;
   spte->flag = PAGE_ALL_ZERO;
+  spte->writable = true;
+
+  struct frame_table_entry* fte = allocate_fte(PAL_USER, spte->user_vaddr);
+  void *frame = fte->frame;
+  if (frame == NULL) return false;
+
+  struct thread *t = thread_current ();
+  bool success = pagedir_get_page (t->pagedir, spte->user_vaddr) == NULL
+          && pagedir_set_page (t->pagedir, spte->user_vaddr, frame, spte->writable);
+
+  if (!success) 
+    {
+      free_frame (frame);
+      return false; 
+    }
 
   if (! add_spte_to_table(spte) ) {
-    printf("comes to in [if (! add_spte_to_table(spte) ) ]\n");
-    PANIC("Duplicated SUPT entry for zeropage");
     return ;
   }
-  printf("success to install_new_zeropage\n");
   return;
 }
 /* jjy implement */
