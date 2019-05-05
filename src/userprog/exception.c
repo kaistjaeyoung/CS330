@@ -168,10 +168,10 @@ page_fault (struct intr_frame *f)
   struct thread *curr = thread_current(); /* Current thread. */
   void* fault_page = (void*) pg_round_down(fault_addr);
 
-  // if (!not_present) {
-  //   printf("comes to !not_present!\n");
-  //   goto PAGE_FAULT_VIOLATED_ACCESS;
-  // }
+  if (!not_present) {
+    exit(-1);
+    return;
+  }
 
   void* esp = user ? f->esp : curr->current_esp;
 
@@ -179,25 +179,26 @@ page_fault (struct intr_frame *f)
   bool on_stack_frame, is_stack_addr;
   on_stack_frame = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
   is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
-  if (on_stack_frame && is_stack_addr) {
-    spt_install_new_zeropage (fault_page);
+  if (not_present && on_stack_frame && is_stack_addr) {
+    if (lookup_page(fault_page) == NULL) { // no spt
+      spt_install_new_zeropage (fault_page);
+    }
   } else if (!page_fault_handler(fault_page, curr->pagedir)) {
-    // printf("%" PRIu32 "\n",curr->pagedir);
-    exit(-1);
+    goto PAGE_FAULT_VIOLATED_ACCESS;
   }
-
-  // printf('pass the !page_fault_handler\n');
 
   return;
-  #endif
+
   PAGE_FAULT_VIOLATED_ACCESS:
+  #endif
+  
   /* (3.1.5) a page fault in the kernel merely sets eax to 0xffffffff
    * and copies its former value into eip. see syscall.c:get_user() */
-  if(!user) { // kernel mode
-    f->eip = (void *) f->eax;
-    f->eax = 0xffffffff;
-    return;
-  }
+  // if(!user) { // kernel mode
+  //   f->eip = (void *) f->eax;
+  //   f->eax = 0xffffffff;
+  //   return;
+  // }
 
   /* Page fault can't be handled - kill the process */
   printf ("Page fault at %p: %s error %s page in %s context.\n",
@@ -206,8 +207,6 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
-
   return;
-
 }
 

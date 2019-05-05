@@ -200,12 +200,11 @@ process_wait (tid_t child_tid)
 
   if (specfic_child_thread == NULL) return -1;
 
-  sema_down(&(specfic_child_thread->child_sema));
+  sema_down(&(specfic_child_thread->child_sema)); // parent : After child said I'm ready to die, I will kill it
   exit_status = specfic_child_thread->exit_status;
   list_remove(&(specfic_child_thread->child_elem));
-  sema_up(&(specfic_child_thread->die_sema));
+  sema_up(&(specfic_child_thread->die_sema)); // parent : After I remove all info about that child, child can die 
   return exit_status;
-
 }
 
 // find_specific_child_thread with specific_tid 
@@ -251,8 +250,8 @@ process_exit (void)
     }
 
   // before child is end, sema_up and after that die_sema sema_up, do sema_down ( by jy )
-  sema_up(&(curr->child_sema));
-  sema_down(&(curr->die_sema));
+  sema_up(&(curr->child_sema)); // child : I'm ready to die!
+  sema_down(&(curr->die_sema)); // Ok I'm really die
 }
 
 /* Sets up the CPU for running user code in the current
