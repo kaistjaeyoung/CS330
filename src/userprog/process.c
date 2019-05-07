@@ -453,7 +453,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  if (!success)
+    file_close (file);
   return success;
 }
 
@@ -538,11 +539,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      struct frame_table_entry* fte = allocate_fte(PAL_USER, upage);
-      uint8_t *kpage = fte->frame;
-      if (kpage == NULL) {
-        return false;
-      }
+      // struct frame_table_entry* fte = allocate_fte(PAL_USER, upage);
+      // uint8_t *kpage = fte->frame;
+      // if (kpage == NULL) {
+      //   return false;
+      // }
 
       /* Load this page. */
       // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
@@ -559,14 +560,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //     return false; 
       //   }
 
-      allocate_page(upage, kpage, PAGE_FILE, page_read_bytes, page_zero_bytes, file, writable);
+      allocate_page(upage, PAGE_FILE, page_read_bytes, page_zero_bytes, file, writable, ofs);
 
-      fte->locked = false;
+      // fte->locked = false;
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += PGSIZE;
     }
   return true;
 }

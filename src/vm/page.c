@@ -43,34 +43,34 @@ page_init (void)
 bool
 allocate_page (
   void *upage,
-  void *kpage,
   enum spte_flags flag,
   size_t read_byte,
   size_t zero_byte,
   struct file* file,
-  bool writable
+  bool writable,
+  int offset,
   )
 {
-     if (file_read (file, kpage, read_byte) != (int) read_byte)
-        {
-          free_frame (kpage);
-          return false; 
-        }
-      memset (kpage + read_byte, 0, zero_byte);
+    //  if (file_read (file, kpage, read_byte) != (int) read_byte)
+    //     {
+    //       free_frame (kpage);
+    //       return false; 
+    //     }
+    //   memset (kpage + read_byte, 0, zero_byte);
 
-      /* Add the page to the process's address space. */
-      struct thread *t = thread_current ();
+    //   /* Add the page to the process's address space. */
+    //   struct thread *t = thread_current ();
 
       /* Verify that there's not already a page at that virtual
         address, then map our page there. */
       // JH COMMENT : 여기서 page set 해주는데 supt entry 도 같이 세팅해 줘야 함~~
-      bool success = pagedir_get_page (t->pagedir, upage) == NULL
-              && pagedir_set_page (t->pagedir, upage, kpage, writable);
-      if (!success) 
-        {
-          free_frame (kpage);
-          return false; 
-        }
+      // bool success = pagedir_get_page (t->pagedir, upage) == NULL
+      //         && pagedir_set_page (t->pagedir, upage, kpage, writable);
+      // if (!success) 
+      //   {
+      //     free_frame (kpage);
+      //     return false; 
+      //   }
 
     // make spte 
     struct sup_page_table_entry * spte = malloc(sizeof(struct sup_page_table_entry));
@@ -82,7 +82,8 @@ allocate_page (
     spte->file = file;
     spte->writable = writable;
     spte->dirty = false;
-    spte->frame = kpage;
+    spte->frame = NULL;
+    spte->offset = offset;
 
     // push spte to the list
     lock_acquire(&thread_current()->sup_lock);
@@ -177,7 +178,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     switch(spte -> flag)
     {
       case PAGE_FILE:
-        if (!handle_page_fault_mmap (spte)) {
+        if (!handle_page_fault_file (spte)) {
           exit(-1);
         }
         loaded = true;
@@ -211,6 +212,37 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     }
 
     return loaded;
+}
+
+bool
+handle_page_fault_file(struct sup_page_table_entry * spte)
+{
+  struct frame_table_entry* fte = allocate_fte(PAL_USER, spte->user_vaddr);
+  void *frame = fte->frame;
+  if (frame == NULL) return false;
+
+  file_seek(spte->file, spte->offset);
+
+  if (file_read (spte->file, frame, spte->read_byte) != (int) spte->read_byte)
+  {
+    free_frame (frame);
+    return false; 
+  }
+  memset (frame + spte->read_byte, 0, spte->zero_byte);
+
+    //   /* Add the page to the process's address space. */
+  struct thread *t = thread_current ();
+
+  bool success = pagedir_get_page (t->pagedir, spte->user_vaddr) == NULL
+          && pagedir_set_page (t->pagedir, spte->user_vaddr, frame, spte->writable);
+  if (!success) 
+    {
+      free_frame (frame);
+      return false; 
+    }
+
+  pagedir_set_dirty (t->pagedir, frame, false);
+  return true;
 }
 
 bool
