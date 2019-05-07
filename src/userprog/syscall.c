@@ -189,6 +189,8 @@ void exit (int status)
     munmap (mmap->mapid);
   }
 
+  remove_all_fte(curr);
+
   thread_exit();
 }
 

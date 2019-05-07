@@ -19,5 +19,6 @@ struct frame_table_entry* allocate_fte(enum palloc_flags flags, void* upage);
 void * allocate_frame (enum palloc_flags flags, void* upage);
 void * free_frame(void * frame);
 void * choose_evict_frame();
+void remove_all_fte(struct thread * thr);
 
 #endif /* vm/frame.h */

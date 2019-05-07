@@ -176,3 +176,38 @@ choose_evict_frame()
   }
   PANIC("should not reached here!\n");
 }
+
+void
+remove_all_fte(struct thread * thr) {
+
+  bool is_clear = false;
+  struct list_elem *e;
+
+  lock_acquire(&frame_lock);
+
+  while (true)
+  {
+    is_clear = true;
+
+    for (e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
+    {
+      struct frame_table_entry *fte = list_entry(e, struct frame_table_entry, elem);
+      if (fte->owner == thr)
+      {
+        is_clear = false;
+        list_remove(e);
+        free(fte);
+        break;
+      }
+    }
+
+    if (is_clear == false) {
+      continue;
+    }
+
+    if (is_clear) {
+      lock_release(&frame_lock);
+      return;
+    }
+  }
+}

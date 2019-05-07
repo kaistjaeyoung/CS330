@@ -170,7 +170,7 @@ bool page_fault_handler(void *upage, uint32_t *pagedir)
     void * frame;
 
     if (spte == NULL) {
-        exit(-1);
+      exit(-1);
     }
 
     bool loaded = false;
