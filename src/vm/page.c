@@ -48,7 +48,7 @@ allocate_page (
   size_t zero_byte,
   struct file* file,
   bool writable,
-  int offset,
+  int offset
   )
 {
     //  if (file_read (file, kpage, read_byte) != (int) read_byte)
@@ -240,6 +240,8 @@ handle_page_fault_file(struct sup_page_table_entry * spte)
       free_frame (frame);
       return false; 
     }
+
+  fte->locked = false;
 
   pagedir_set_dirty (t->pagedir, frame, false);
   return true;

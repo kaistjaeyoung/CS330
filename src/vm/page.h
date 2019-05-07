@@ -52,6 +52,7 @@ bool handle_page_fault_mmap (struct sup_page_table_entry * spte);
 bool add_spte_to_table(struct sup_page_table_entry *spte);
 bool remove_spte_from_table(void *upage, size_t byte, size_t offset);
 bool handle_page_fault_swap(struct sup_page_table_entry * spte);
+bool handle_page_fault_file(struct sup_page_table_entry * spte);
 
 /* jjy implement */
 void spt_install_new_zeropage(void *upage);
