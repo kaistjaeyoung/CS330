@@ -16,6 +16,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
@@ -30,6 +31,9 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  char temp[256];
+
+  char *next_ptr;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -37,12 +41,65 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (temp, file_name, PGSIZE);
+
+  strtok_r((char *) temp, " ", &next_ptr);
+
+  struct file *file = NULL;
+  file = filesys_open (temp);
+  if (file == NULL) {
+    return -1;
+  }
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (temp, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
   return tid;
+}
+
+void push_argv_to_stack(char ** tokens_array, int argc, void ** esp)
+{
+  int i;
+  int argv_addr[argc];
+  int total_length = 0;
+
+  for (i=argc - 1; i >= 0; i--) {
+    int argv_length = strlen(tokens_array[i]) + 1;
+    total_length += argv_length;
+    *esp -= argv_length;
+    strlcpy(*esp, tokens_array[i], argv_length);
+    argv_addr[i] = (int)*esp;
+  }
+
+  /* push word align esp to be %4 */
+  *esp -= total_length % 4 != 0 ? 4 - (total_length % 4) : 0;
+
+  // Push Null ptr
+  *esp -= 4;
+  *(int*)*esp = 0;
+
+  // Push argv ptr to esp
+  for (i=argc - 1; i >= 0; i--) {
+    *esp -= 4;
+    *(int*)*esp = argv_addr[i];
+  }
+
+  // Push argv_addr ptr to esp
+  *esp -= 4;
+  *(int*)*esp = *esp + 4;
+
+  // Push argc to esp
+  *esp -= 4;
+  *(int*)*esp = argc;
+
+  // Push virtual return value to esp
+  *esp -= 4;
+  *(int*)*esp = 0;
+
+  // hex_dump(*esp, *esp, 100, 1);
+
 }
 
 /* A thread function that loads a user process and makes it start
@@ -54,12 +111,28 @@ start_process (void *f_name)
   struct intr_frame if_;
   bool success;
 
+  char *token, *save_ptr;
+  char *tokens_array[256];
+
+  int i;
+
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) 
+  {
+      tokens_array[i] = token;
+      i += 1;
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  // if load succeeded, grow stack
+  if (success) {
+    push_argv_to_stack(&tokens_array, i, &if_.esp);
+  }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,9 +161,31 @@ start_process (void *f_name)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
+  // by jh
+  // int a = 0, i;
+  // for(i=0; i<10000 * 7000; ++i) a += i;
+  // ASSERT(a != 0);
+  // return -1;
+
+  // wait child process to do 'sema_up' ( by jy )
+  struct list_elem* e;
+  struct thread* t = NULL;
+  int exit_status;
+
+  for (e = list_begin(&(thread_current()->child_list)); e != list_end(&(thread_current()->child_list)); e = list_next(e)) {
+    t = list_entry(e, struct thread, child_elem);
+    if (child_tid == t->tid) {
+      sema_down(&(t->child_sema));
+      exit_status = t->exit_status;
+      list_remove(&(t->child_elem));
+      sema_up(&(t->die_sema));
+      return exit_status;
+    }
+  }
   return -1;
+
 }
 
 /* Free the current process's resources. */
@@ -116,6 +211,10 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  // before child is end, sema_up and after that mem sema_up, do sema_down ( by jy )
+  sema_up(&(curr->child_sema));
+  sema_down(&(curr->die_sema));
 }
 
 /* Sets up the CPU for running user code in the current
@@ -439,7 +538,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
